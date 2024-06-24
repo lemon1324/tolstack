@@ -2,6 +2,7 @@
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter"
     },
+    "terminal.integrated.env.windows": { "PYTHONPATH": "${workspaceFolder}" },
     "python.formatting.provider": "none",
     "python.testing.unittestArgs": [
         "-v",

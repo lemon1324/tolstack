@@ -6,11 +6,12 @@ authors = ["lemon1324 <lemon1324@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.11,<3.12"
-numpy = "^1.24.3"
-matplotlib = "^3.7.1"
-scipy = "^1.10.1"
-
+python = ">=3.11"
+numpy = ">=1.24.3"
+matplotlib = ">=3.7"
+scipy = ">=1.10"
+pyqt5 = "=5.15.10"   
+pyqt5-qt5 = "=5.15.2"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.4"
