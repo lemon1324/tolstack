@@ -1,6 +1,5 @@
 from tolstack.StackParser import StackParser
 
-
 from tolstack.StackFormat import (
     format_constant,
     format_constant_header,
@@ -9,10 +8,8 @@ from tolstack.StackFormat import (
     format_expression,
 )
 
-import timeit
-
 import matplotlib.pyplot as plt
-import numpy as np
+import numpy
 import scipy
 
 import sys
@@ -64,10 +61,14 @@ def main():
     print_lines = []
 
     if conduct_sensitivity_analysis:
-        print_lines.append("**WARN: Sensitivity analysis not yet implemented, ignoring.")
+        print_lines.append(
+            "**WARN: Sensitivity analysis not yet implemented, ignoring."
+        )
 
     if conduct_tolerance_contribution:
-        print_lines.append("**WARN: Tolerance contribution analysis not yet implemented, ignoring.")
+        print_lines.append(
+            "**WARN: Tolerance contribution analysis not yet implemented, ignoring."
+        )
 
     try:
         with open(infile, "r") as file:

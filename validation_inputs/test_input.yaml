@@ -1,9 +1,0 @@
-CONSTANTS:
-  PI: 3.1415
-  g: 9.81
-DIMENSIONS:
-  D1: 
-    value: 3 5E-3 -.001
-    distribution: U
-    PN: 441-00052
-    note: The note for this dimension

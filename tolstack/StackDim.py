@@ -9,7 +9,7 @@ from numpy import quantile
 
 from math import isclose
 
-from scipy import stats
+from scipy.stats import norm
 
 from tolstack.StackTypes import DistType, get_code_from_dist, EvalType
 
@@ -127,11 +127,11 @@ class StackDim:
             case EvalType.WORSTCASE:
                 return self.nom + self.minus
             case EvalType.STATISTICAL_1S:
-                return quantile(self.data, stats.norm.sf(1), method="median_unbiased")
+                return quantile(self.data, norm.sf(1), method="median_unbiased")
             case EvalType.STATISTICAL_2S:
-                return quantile(self.data, stats.norm.sf(2), method="median_unbiased")
+                return quantile(self.data, norm.sf(2), method="median_unbiased")
             case EvalType.STATISTICAL_3S:
-                return quantile(self.data, stats.norm.sf(3), method="median_unbiased")
+                return quantile(self.data, norm.sf(3), method="median_unbiased")
             case _:
                 sys.exit(f"Error: cannot evaluate a lower bound with {method} method.")
 
@@ -168,11 +168,11 @@ class StackDim:
             case EvalType.WORSTCASE:
                 return self.nom + self.plus
             case EvalType.STATISTICAL_1S:
-                return quantile(self.data, stats.norm.cdf(1), method="median_unbiased")
+                return quantile(self.data, norm.cdf(1), method="median_unbiased")
             case EvalType.STATISTICAL_2S:
-                return quantile(self.data, stats.norm.cdf(2), method="median_unbiased")
+                return quantile(self.data, norm.cdf(2), method="median_unbiased")
             case EvalType.STATISTICAL_3S:
-                return quantile(self.data, stats.norm.cdf(3), method="median_unbiased")
+                return quantile(self.data, norm.cdf(3), method="median_unbiased")
             case _:
                 sys.exit(f"Error: cannot evaluate a lower bound with {method} method.")
 
