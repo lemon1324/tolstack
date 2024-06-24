@@ -1,0 +1,11 @@
+*CONSTANTS, VALUE, NOTE
+  PI, 3.1415
+  g,9.81, Standard acceleration due to gravity
+*DIMENSIONS, NOMINAL, PLUS, MINUS, DISTRIBUTION, PART NUMBER, NOTE
+  D1, 0.3, .001, -5E-3, U, PRT-00010, This is the remainder of the long comment.
+  D2, 0.5, .01, -.2, 3S, PRT-00011, Example of a normal distribution.
+*EXPRESSIONS, VALUE, LOWER, UPPER, METHOD, NOTE
+  E1, D1+D1, , .7, W, The description of this expression.
+  E2, E1 - D2, .1,,W, Composite expression, worst-case.
+  E3, E2, .1,,3S, Composite expression, statistical.
+  E4, E2, .1,,1S, Composite expression, statistical.
