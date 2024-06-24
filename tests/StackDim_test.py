@@ -33,6 +33,13 @@ class TestStackDim(unittest.TestCase):
         self.cloneDim = StackDim(5.0, 0.1, -0.2)
         self.assertTrue(self.baseDim == self.cloneDim)
 
+
+class TestAddNumeric(unittest.TestCase):
+    def setUp(self) -> None:
+        self.baseDim = StackDim(5.0, 0.1, -0.2)
+        self.int = 4
+        self.float = 5.3
+
     def test_addInt(self) -> None:
         outDim = self.baseDim + self.int
         self.assertEqual(
@@ -150,6 +157,87 @@ class TestStackDim(unittest.TestCase):
         a = self.baseDim + self.float
         b = self.float + self.baseDim
         self.assertEqual(a, b, "Failed commutativity with float addition.")
+
+
+class TestSubtractNumeric(unittest.TestCase):
+    def setUp(self) -> None:
+        self.baseDim = StackDim(5.0, 0.1, -0.2)
+        self.int = 4
+        self.float = 5.3
+
+    def test_subtractInt(self) -> None:
+        outDim = self.baseDim - self.int
+        self.assertEqual(outDim.nom, self.baseDim.nom - self.int)
+        self.assertEqual(outDim.plus, self.baseDim.plus)
+        self.assertEqual(outDim.minus, self.baseDim.minus)
+        self.assertEqual(outDim.disttype, self.baseDim.disttype)
+        self.assertIsNone(outDim.PN)
+        self.assertEqual(outDim.note, "Scalar shift.")
+
+    def test_subtractRightInt(self) -> None:
+        outDim = self.int - self.baseDim
+        self.assertEqual(outDim.nom, self.int - self.baseDim.nom)
+        self.assertEqual(outDim.plus, -self.baseDim.minus)
+        self.assertEqual(outDim.minus, -self.baseDim.plus)
+        self.assertEqual(outDim.disttype, self.baseDim.disttype)
+        self.assertIsNone(outDim.PN)
+        self.assertEqual(outDim.note, "Scalar shift.")
+
+    def test_subtractFloat(self) -> None:
+        outDim = self.baseDim - self.float
+        self.assertEqual(outDim.nom, self.baseDim.nom - self.float)
+        self.assertEqual(outDim.plus, self.baseDim.plus)
+        self.assertEqual(outDim.minus, self.baseDim.minus)
+        self.assertEqual(outDim.disttype, self.baseDim.disttype)
+        self.assertIsNone(outDim.PN)
+        self.assertEqual(outDim.note, "Scalar shift.")
+
+    def test_subtractRightFloat(self) -> None:
+        outDim = self.float - self.baseDim
+        self.assertEqual(outDim.nom, self.float - self.baseDim.nom)
+        self.assertEqual(outDim.plus, -self.baseDim.minus)
+        self.assertEqual(outDim.minus, -self.baseDim.plus)
+        self.assertEqual(outDim.disttype, self.baseDim.disttype)
+        self.assertIsNone(outDim.PN)
+        self.assertEqual(outDim.note, "Scalar shift.")
+
+
+class TestNegateStackDims(unittest.TestCase):
+    @classmethod
+    def setUpClass(self) -> None:
+        self.dim = StackDim(5.0, 0.1, -0.2, key="dim")
+        self.neg_dim = -self.dim
+
+        self.derived_dim = self.dim + self.dim
+        self.neg_derived_dim = -self.derived_dim
+
+    def test_baseNegation(self):
+        # Check if the bare numbers are negated correctly
+        self.assertEqual(self.dim.nom, -self.neg_dim.nom)
+        self.assertEqual(self.neg_dim.plus, 0.2)
+        self.assertEqual(self.neg_dim.minus, -0.1)
+
+        # self.assertEqual(self.dim.data, -self.neg_dim.data)
+
+        self.assertEqual(self.dim.disttype, self.neg_dim.disttype)
+        self.assertEqual(self.neg_dim.note, "Inverted.")
+        self.assertIsNone(self.neg_dim.PN)
+
+        self.assertEqual(self.neg_dim.key, "-dim")
+
+    def test_derivedNegation(self):
+        # Check if the bare numbers are negated correctly
+        self.assertEqual(self.derived_dim.nom, -self.neg_derived_dim.nom)
+        self.assertEqual(self.neg_derived_dim.plus, 0.4)
+        self.assertEqual(self.neg_derived_dim.minus, -0.2)
+
+        self.assertTrue((self.derived_dim.data == -self.neg_derived_dim.data).all())
+
+        self.assertEqual(self.derived_dim.disttype, self.neg_derived_dim.disttype)
+        self.assertEqual(self.neg_derived_dim.note, "Derived.")
+        self.assertIsNone(self.neg_derived_dim.PN)
+
+        self.assertEqual(self.neg_derived_dim.key, "-dim+dim")
 
 
 class TestAddStackDims(unittest.TestCase):

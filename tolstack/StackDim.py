@@ -172,24 +172,39 @@ class StackDim:
             return False
         return True
 
+    def __neg__(self) -> StackDim:
+        _nom = -self.nom
+        _plus = -self.minus
+        _minus = -self.plus
+        _type = self.disttype
+        _sample = -self.dist()
+        _note = "Derived." if self.note == "Derived." else "Inverted."
+        _key = "-" + self.key
+
+        return StackDim(_nom, _plus, _minus, _type, _sample, note=_note, key=_key)
+
     def __add__(self, other) -> StackDim:
         if isinstance(other, self.__class__):
-            return self._addStackDims(self, other)
+            return StackDim._addStackDims(self, other)
         elif isinstance(other, (int, float)):
-            return self._addNumeric(self, other)
+            return StackDim._addNumeric(self, other)
         else:
             raise TypeError(
                 f"unsupported operand type(s) for +: '{self.__class__}' and '{type(other)}'"
             )
 
     def __radd__(self, other) -> StackDim:
+        # implements (other + self)
+        # since addition of StackDims and/or scalars commutes,
+        # simply flip such that we can use the __add__ method.
         return self + other
 
-    def __sub__(self, other: StackDim) -> StackDim:
-        _key = self.key + "-" + other.key
-        _nom = self.nom - other.nom
-        _plus = self.plus - other.minus
-        _minus = self.minus - other.plus
-        _sample = self.dist() - other.dist()
-        _type = DistType.DERIVED
-        return StackDim(_nom, _plus, _minus, _type, _sample, note="Derived.", key=_key)
+    def __sub__(self, other) -> StackDim:
+        # implements (self - other)
+        # leverage negation definition to implement as self + (-other)
+        return self + (-other)
+
+    def __rsub__(self, other) -> StackDim:
+        # implements (other - self)
+        # leverage negation definition to implement as (-self) + other
+        return -self + other
