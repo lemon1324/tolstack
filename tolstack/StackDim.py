@@ -50,6 +50,20 @@ class StackDim:
         self.key = key
 
     def dist(self) -> ndarray:
+        """
+        Returns the underlying distribution of this StackDim for Monte Carlo propagation.
+
+        If the distribution type is a known analytical distribution, then select a new sample from that
+        distribution using the numpy random number generator. If the distribution is already a simulated
+        distribution from an operation on StackDims, then return a random permutation of the distribution.
+        Since mathematical operations on StackDims are performed elementwise, this simulates random sampling
+        from the unknown distribution as long as d << StackDim.N, where StackDim.N is the number of points
+        sampled, and d is the maximum depth of an expression tree containing this StackDim.
+
+        Returns:
+        ndarray
+            The underlying distribution for Monte Carlo propagation.
+        """
         match self.disttype:
             case DistType.UNIFORM:
                 return self._uniformDist()
@@ -70,6 +84,19 @@ class StackDim:
                 return self.rng.permutation(self.data)
 
     def center(self, method: EvalType) -> float:
+        """
+        Returns the center value for reports.
+
+        When using worst case analysis, this will return the nominal value, which will in general
+        not be centered within the tolerance limits. When using statistical analysis, returns the
+        median value of the distribution.
+
+        Parameters:
+        method (EvalType): The evaluation method used for tolerance analysis.
+
+        Returns:
+        float: The center value based on the provided evaluation method.
+        """
         match method:
             case EvalType.WORSTCASE:
                 return self.nom
@@ -83,6 +110,19 @@ class StackDim:
                 sys.exit(f"Error: cannot evaluate a center value with {method} method.")
 
     def lower(self, method: EvalType) -> float:
+        """
+        Returns the lower value for reports.
+
+        This returns the lower edge of the tolerance band. When using worst case analysis, this will
+        return the nominal value offset by the minus tolerance. When using statistical analysis, returns
+        the quantile corresponding to the selected sigma value.
+
+        Parameters:
+        method (EvalType): The evaluation method used for tolerance analysis.
+
+        Returns:
+        float: The lower tolerance limit based on the provided evaluation method.
+        """
         match method:
             case EvalType.WORSTCASE:
                 return self.nom + self.minus
@@ -96,9 +136,34 @@ class StackDim:
                 sys.exit(f"Error: cannot evaluate a lower bound with {method} method.")
 
     def lower_tol(self, method: EvalType) -> float:
+        """
+        Returns the lower tolerance for reports.
+
+        This returns the lower tolerance value, as measured by the tolerance value applied to the center
+        value in order to reach the lower bound.
+
+        Parameters:
+        method (EvalType): The evaluation method used for tolerance analysis.
+
+        Returns:
+        float: The lower tolerance value based on the provided evaluation method.
+        """
         return self.lower(method) - self.center(method)
 
     def upper(self, method: EvalType) -> float:
+        """
+        Returns the upper value for reports.
+
+        This returns the upper edge of the tolerance band. When using worst case analysis, this will
+        return the nominal value offset by the plus tolerance. When using statistical analysis, returns
+        the quantile corresponding to the selected sigma value.
+
+        Parameters:
+        method (EvalType): The evaluation method used for tolerance analysis.
+
+        Returns:
+        float: The upper tolerance limit based on the provided evaluation method.
+        """
         match method:
             case EvalType.WORSTCASE:
                 return self.nom + self.plus
@@ -112,6 +177,18 @@ class StackDim:
                 sys.exit(f"Error: cannot evaluate a lower bound with {method} method.")
 
     def upper_tol(self, method: EvalType) -> float:
+        """
+        Returns the upper tolerance for reports.
+
+        This returns the upper tolerance value, as measured by the tolerance value applied to the center
+        value in order to reach the upper bound.
+
+        Parameters:
+        method (EvalType): The evaluation method used for tolerance analysis.
+
+        Returns:
+        float: The upper tolerance value based on the provided evaluation method.
+        """
         return self.upper(method) - self.center(method)
 
     def _uniformDist(self) -> ndarray:
@@ -184,6 +261,19 @@ class StackDim:
         return StackDim(_nom, _plus, _minus, _type, _sample, note=_note, key=_key)
 
     def __add__(self, other) -> StackDim:
+        """
+        Implements (self + other).
+
+        Splits implementation based on whether other is a StackDim or if it is a numeric value.
+
+        Parameters:
+        other: Any
+            The value to add to this instance.
+
+        Returns:
+        StackDim
+            The result of the addition.
+        """
         if isinstance(other, self.__class__):
             return StackDim._addStackDims(self, other)
         elif isinstance(other, (int, float)):
@@ -194,17 +284,50 @@ class StackDim:
             )
 
     def __radd__(self, other) -> StackDim:
-        # implements (other + self)
-        # since addition of StackDims and/or scalars commutes,
-        # simply flip such that we can use the __add__ method.
+        """
+        Implements (other + self).
+
+        Since the addition of StackDims and/or scalars commutes,
+        this method simply flips the operation so that the __add__ method can be used.
+
+        Parameters:
+        other: Any
+            The value to add to this instance.
+
+        Returns:
+        StackDim
+            The result of the addition.
+        """
         return self + other
 
     def __sub__(self, other) -> StackDim:
-        # implements (self - other)
-        # leverage negation definition to implement as self + (-other)
+        """
+        Implements (self - other).
+
+        Leverages the negation definition to implement this as self + (-other).
+
+        Parameters:
+        other: Any
+            The value to subtract from this instance.
+
+        Returns:
+        StackDim
+            The result of the subtraction.
+        """
         return self + (-other)
 
     def __rsub__(self, other) -> StackDim:
-        # implements (other - self)
-        # leverage negation definition to implement as (-self) + other
+        """
+        Implements (other - self).
+
+        Leverages negation definition to implement as (-self) + other.
+
+        Parameters:
+        other: Any
+            The value to subtract from this instance.
+
+        Returns:
+        StackDim
+            The result of the subtraction.
+        """
         return -self + other
