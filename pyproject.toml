@@ -6,9 +6,8 @@ authors = ["lemon1324 <lemon1324@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.11"
-numpy = ">=1.24.3"
-matplotlib = ">=3.7"
+python = ">=3.11, <3.13"
+numpy = "^1.24.3"
 scipy = ">=1.10"
 pyqt5 = "=5.15.10"   
 pyqt5-qt5 = "=5.15.2"
@@ -19,3 +18,10 @@ ipykernel = "^6.29.4"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry-pyinstaller-plugin.scripts]
+tolstack = { source = "tolstack/__main__.py", type = "onedir", bundle = false}
+tolstack-cli = { source = "tolstack/compute_stack.py", type = "onedir", bundle = false}
+
+[tool.poetry-pyinstaller-plugin.collect]
+submodules = ['numpy.f2py', 'scipy._lib.array_api_compat', 'scipy.special']

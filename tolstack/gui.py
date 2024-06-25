@@ -7,13 +7,12 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QLineEdit,
-    QLabel,
     QPushButton,
     QFileDialog,
     QCheckBox,
 )
 
-# from processing import process_input
+from tolstack.compute_stack import process_files
 
 
 class MyApp(QWidget):
@@ -57,8 +56,8 @@ class MyApp(QWidget):
         save_file_layout.addWidget(self.btn_browse_save)
 
         checkbox_layout = QHBoxLayout()
-        self.option_a_checkbox = QCheckBox("Option A")
-        self.option_b_checkbox = QCheckBox("Option B")
+        self.option_a_checkbox = QCheckBox("Sensitivity Analysis")
+        self.option_b_checkbox = QCheckBox("Tolerance Contribution")
         checkbox_layout.addWidget(self.option_a_checkbox)
         checkbox_layout.addWidget(self.option_b_checkbox)
 
@@ -93,12 +92,12 @@ class MyApp(QWidget):
         option_a = self.option_a_checkbox.isChecked()
         option_b = self.option_b_checkbox.isChecked()
 
-        # process_input(input_file, save_file, option_a, option_b)
+        process_files(input_file, save_file, option_a, option_b)
 
 
 def run_app():
     app = QApplication(sys.argv)
-    app.setStyle('Cleanlooks')
+    app.setStyle("Cleanlooks")
     ex = MyApp()
     ex.show()
     sys.exit(app.exec_())

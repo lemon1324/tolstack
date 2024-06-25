@@ -45,7 +45,7 @@ class StackDim:
             self.data = self.dist()
 
         self.PN = PN
-        self.note = note
+        self.note = note.strip() if note else None
 
         self.key = key
 
