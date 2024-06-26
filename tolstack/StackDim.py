@@ -13,10 +13,80 @@ from scipy.stats import norm
 
 from tolstack.StackTypes import DistType, get_code_from_dist, EvalType
 
+from tolstack.StackUtils import mulCombination, divCombination
+
 import sys
 
 
 class StackDim:
+    """
+    A class to represent a dimension in a stack with statistical and tolerance analysis.
+
+    Note that for any given StackDim, plus and minus always track the worst-case bounds
+    with respect to the nominal value. The underlying distribution (available as dist())
+    tracks the simulated distribution.
+
+    Attributes:
+    -----------
+    rng : numpy.random.Generator
+        Random number generator.
+    N : int
+        Number of data points for Monte Carlo simulations.
+    nom : float
+        Nominal value of the dimension.
+    plus : float
+        Plus tolerance value.
+    minus : float
+        Minus tolerance value.
+    disttype : DistType
+        Type of the distribution for Monte Carlo propagation.
+    data : ndarray
+        Data representing the distribution, either generated or provided.
+    PN : str
+        Part Number associated with the dimension.
+    note : str
+        Additional notes regarding the dimension.
+    key : str
+        Unique key to identify the dimension.
+
+    Methods:
+    --------
+    dist() -> ndarray:
+        Returns the underlying distribution of this StackDim for Monte Carlo propagation.
+    center(method: EvalType) -> float:
+        Returns the center value for reports based on the evaluation method.
+    lower(method: EvalType) -> float:
+        Returns the lower value for reports based on the evaluation method.
+    lower_tol(method: EvalType) -> float:
+        Returns the lower tolerance value for reports based on the evaluation method.
+    upper(method: EvalType) -> float:
+        Returns the upper value for reports based on the evaluation method.
+    upper_tol(method: EvalType) -> float:
+        Returns the upper tolerance value for reports based on the evaluation method.
+    __str__() -> str:
+        Returns a string representation of the StackDim instance.
+    __eq__(other) -> bool:
+        Overloads equality test to compare two StackDims.
+    __neg__() -> StackDim:
+        Implements negation of the StackDim.
+    __add__(other) -> StackDim:
+        Implements addition of StackDims or StackDim with a numeric value.
+    __radd__(other) -> StackDim:
+        Implements reverse addition.
+    __sub__(other) -> StackDim:
+        Implements subtraction by leveraging negation.
+    __rsub__(other) -> StackDim:
+        Implements reverse subtraction.
+    __mul__(other) -> StackDim:
+        Implements multiplication of StackDims or StackDim with a numeric value.
+    __rmul__(other) -> StackDim:
+        Implements reverse multiplication.
+    __truediv__(other) -> StackDim:
+        Implements division of StackDims or StackDim with a numeric value.
+    __rtruediv__(other) -> StackDim:
+        Implements reverse division.
+    """
+
     rng = default_rng()
     N = 100000
 
@@ -212,7 +282,38 @@ class StackDim:
         return StackDim(_nom, _plus, _minus, _type, _sample, note="Derived.", key=_key)
 
     @staticmethod
+    def _mulStackDims(first: StackDim, second: StackDim) -> StackDim:
+        # implements first * second
+        _key = first.key + "*" + second.key
+        _nom = first.nom * second.nom
+        # explicitly test all cases, since depending on magnitude and sign
+        # it is not clear which is the most plus and the most minus
+        _plus, _minus = mulCombination(
+            (first.nom, first.plus, first.minus),
+            (second.nom, second.plus, second.minus),
+        )
+        _sample = first.dist() * second.dist()
+        _type = DistType.DERIVED
+        return StackDim(_nom, _plus, _minus, _type, _sample, note="Derived.", key=_key)
+
+    @staticmethod
+    def _divStackDims(first: StackDim, second: StackDim) -> StackDim:
+        # implements first / second
+        _key = first.key + "/" + second.key
+        _nom = first.nom / second.nom
+        # explicitly test all cases, since depending on magnitude and sign
+        # it is not clear which is the most plus and the most minus
+        _plus, _minus = divCombination(
+            (first.nom, first.plus, first.minus),
+            (second.nom, second.plus, second.minus),
+        )
+        _sample = first.dist() / second.dist()
+        _type = DistType.DERIVED
+        return StackDim(_nom, _plus, _minus, _type, _sample, note="Derived.", key=_key)
+
+    @staticmethod
     def _addNumeric(dim: StackDim, number: float) -> StackDim:
+        # Implements dim + number
         _key = dim.key + "+" + str(number)
         _nom = dim.nom + number
         _plus = dim.plus
@@ -221,6 +322,19 @@ class StackDim:
         _type = dim.disttype
         return StackDim(
             _nom, _plus, _minus, _type, _sample, note="Scalar shift.", key=_key
+        )
+
+    @staticmethod
+    def _mulNumeric(dim: StackDim, number: float) -> StackDim:
+        # implements dim * number
+        _key = dim.key + "*" + str(number)
+        _nom = dim.nom * number
+        _plus = dim.plus * number
+        _minus = dim.minus * number
+        _sample = dim.dist() * number
+        _type = dim.disttype
+        return StackDim(
+            _nom, _plus, _minus, _type, _sample, note="Scalar product.", key=_key
         )
 
     def __str__(self) -> str:
@@ -331,3 +445,98 @@ class StackDim:
             The result of the subtraction.
         """
         return -self + other
+
+    def __mul__(self, other) -> StackDim:
+        """
+        Implements (self * other).
+
+        Splits implementation based on whether other is a StackDim or if it is a numeric value.
+        If both are StackDims, assumes distributions are uncorrelated.
+
+        Parameters:
+        other: Any
+            The value to multiply with this instance.
+
+        Returns:
+        StackDim
+            The result of the multiplication.
+        """
+        if isinstance(other, self.__class__):
+            return StackDim._mulStackDims(self, other)
+        elif isinstance(other, (int, float)):
+            return StackDim._mulNumeric(self, other)
+        else:
+            raise TypeError(
+                f"unsupported operand type(s) for +: '{self.__class__}' and '{type(other)}'"
+            )
+
+    def __rmul__(self, other) -> StackDim:
+        """
+        Implements (other * self).
+
+        Since the multiplication of StackDims and/or scalars commutes,
+        this method simply flips the operation so that the __mul__ method can be used.
+
+        Parameters:
+        other: Any
+            The value to multiply with this instance.
+
+        Returns:
+        StackDim
+            The result of the multiplication.
+        """
+        return self * other
+
+    def __truediv__(self, other) -> StackDim:
+        """
+        Implements (self / other).
+
+        Splits implementation based on whether other is a StackDim or if it is a numeric value.
+        If both are StackDims, assumes distributions are uncorrelated.
+
+        If other is a numeric value, refactors to self * (1/other) to use the existing multiply
+        method.
+
+        Parameters:
+        other: Any
+            The value to divide this instance by.
+
+        Returns:
+        StackDim
+            The result of the division.
+        """
+        if isinstance(other, self.__class__):
+            return StackDim._divStackDims(self, other)
+        elif isinstance(other, (int, float)):
+            return StackDim._mulNumeric(self, 1 / other)
+        else:
+            raise TypeError(
+                f"unsupported operand type(s) for +: '{self.__class__}' and '{type(other)}'"
+            )
+
+    def __rtruediv__(self, other) -> StackDim:
+        """
+        Implements (other / self).
+
+        Splits implementation based on whether other is a StackDim or if it is a numeric value.
+        If both are StackDims, assumes distributions are uncorrelated.
+
+        If other is a StackDim, flips the order of operators and calls the normal division
+        method. If other is a numeric value, creates a dummy constant StackDim for the division.
+
+        Parameters:
+        other: Any
+            The value to divide this instance by.
+
+        Returns:
+        StackDim
+            The result of the division.
+        """
+        if isinstance(other, self.__class__):
+            return StackDim._divStackDims(other, self)
+        elif isinstance(other, (int, float)):
+            return StackDim._mulNumeric(StackDim(other), self)
+        else:
+            raise TypeError(
+                f"unsupported operand type(s) for +: '{self.__class__}' and '{type(other)}'"
+            )

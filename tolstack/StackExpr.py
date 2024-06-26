@@ -62,6 +62,8 @@ class StackExpr:
                 return _left + _right
             case "-":
                 return _left - _right
+            case '*':
+                return _left * _right
             case _:
                 sys.exit(f"Error computing '{node.key}', operation not defined.")
 

@@ -3,7 +3,7 @@ import sys
 from collections import defaultdict
 
 from tolstack.StackDim import StackDim
-from tolstack.StackUtils import parse_string_to_numeric
+from tolstack.StackUtils import parse_string_to_numeric, percent_to_fraction
 
 from tolstack.StackExpr import StackExpr
 
@@ -95,12 +95,25 @@ class StackParser:
 
         _key = tokens[0].strip()
 
+        _nom = parse_string_to_numeric(tokens[1])
+        if _nom is None:
+            print(
+                f"Attempting to define dimension {tokens[0]}, but cannot convert '{tokens[1+i]}' to a numeric value.",
+                file=sys.stderr,
+            )
+            return
+
         _vals = []
-        for i in range(3):
-            _vals.append(parse_string_to_numeric(tokens[1 + i]))
+        for i in range(2):
+            string = tokens[2 + i]
+            if "%" in string:
+                numeric = percent_to_fraction(string)
+                _vals.append(numeric * _nom if numeric else None)
+            else:
+                _vals.append(parse_string_to_numeric(string))
             if _vals[i] is None:
                 print(
-                    f"Attempting to define dimension {tokens[0]}, but cannot convert '{tokens[1+i]}' to a numeric value.",
+                    f"Attempting to define dimension {tokens[0]}, but cannot convert '{string}' to a numeric value.",
                     file=sys.stderr,
                 )
                 return
@@ -125,9 +138,9 @@ class StackParser:
 
         _dim = StackDim(
             key=_key,
-            nominal=_vals[0],
-            plus=_vals[1],
-            minus=_vals[2],
+            nominal=_nom,
+            plus=_vals[0],
+            minus=_vals[1],
             disttype=_dist,
             PN=_PN,
             note=_note,

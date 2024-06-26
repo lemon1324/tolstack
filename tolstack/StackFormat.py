@@ -33,7 +33,7 @@ def format_dimension(D: StackDim, usage):
     )
     if usage[D.key]:
         lines.append(
-            f"{12*' '}Used in: {', '.join([f'{expr_key}' for expr_key in usage[D.key]])}"
+            f"{12*' '}Used in: {', '.join([f'{expr_key}' for expr_key in sorted(usage[D.key])])}"
         )
     return "\n".join(lines)
 

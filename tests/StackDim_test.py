@@ -3,8 +3,12 @@ import unittest
 from tolstack.StackDim import StackDim
 from tolstack.StackTypes import DistType
 
-from tests.TestUtils import addCombination
-from tests.TestUtils import subtractCombination
+from tolstack.StackUtils import (
+    addCombination,
+    subtractCombination,
+    mulCombination,
+    divCombination,
+)
 
 
 class TestStackDim(unittest.TestCase):
@@ -202,6 +206,59 @@ class TestSubtractNumeric(unittest.TestCase):
         self.assertEqual(outDim.note, "Scalar shift.")
 
 
+class TestMulNumeric(unittest.TestCase):
+    def setUp(self) -> None:
+        self.baseDim = StackDim(5.0, 0.1, -0.2)
+        self.int = 4
+        self.float = 5.3
+
+    def test_mulInt(self) -> None:
+        outDim = self.baseDim * self.int
+        self.assertEqual(outDim.nom, self.baseDim.nom * self.int)
+        self.assertEqual(outDim.plus, self.baseDim.plus * self.int)
+        self.assertEqual(outDim.minus, self.baseDim.minus * self.int)
+        self.assertEqual(outDim.disttype, self.baseDim.disttype)
+        self.assertIsNone(outDim.PN)
+        self.assertEqual(outDim.note, "Scalar product.")
+
+    def test_mulRightInt(self) -> None:
+        outDim = self.int * self.baseDim
+        self.assertEqual(outDim.nom, self.baseDim.nom * self.int)
+        self.assertEqual(outDim.plus, self.baseDim.plus * self.int)
+        self.assertEqual(outDim.minus, self.baseDim.minus * self.int)
+        self.assertEqual(outDim.disttype, self.baseDim.disttype)
+        self.assertIsNone(outDim.PN)
+        self.assertEqual(outDim.note, "Scalar product.")
+
+    def test_mulIntCommutativity(self) -> None:
+        a = self.baseDim * self.int
+        b = self.int * self.baseDim
+        self.assertEqual(a, b, "Failed commutativity with integer multiplication.")
+
+    def test_mulFloat(self) -> None:
+        outDim = self.baseDim * self.float
+        self.assertEqual(outDim.nom, self.baseDim.nom * self.float)
+        self.assertEqual(outDim.plus, self.baseDim.plus * self.float)
+        self.assertEqual(outDim.minus, self.baseDim.minus * self.float)
+        self.assertEqual(outDim.disttype, self.baseDim.disttype)
+        self.assertIsNone(outDim.PN)
+        self.assertEqual(outDim.note, "Scalar product.")
+
+    def test_mulRightFloat(self) -> None:
+        outDim = self.float * self.baseDim
+        self.assertEqual(outDim.nom, self.baseDim.nom * self.float)
+        self.assertEqual(outDim.plus, self.baseDim.plus * self.float)
+        self.assertEqual(outDim.minus, self.baseDim.minus * self.float)
+        self.assertEqual(outDim.disttype, self.baseDim.disttype)
+        self.assertIsNone(outDim.PN)
+        self.assertEqual(outDim.note, "Scalar product.")
+
+    def test_mulFloatCommutativity(self) -> None:
+        a = self.baseDim * self.float
+        b = self.float * self.baseDim
+        self.assertEqual(a, b, "Failed commutativity with float addition.")
+
+
 class TestNegateStackDims(unittest.TestCase):
     @classmethod
     def setUpClass(self) -> None:
@@ -344,3 +401,101 @@ class TestSubtractStackDims(unittest.TestCase):
         self.assertEqual(
             self.sum.note, "Derived.", msg="Incorrect note when subtracting StackDims."
         )
+
+
+class TestMulStackDims(unittest.TestCase):
+    @classmethod
+    def setUpClass(self) -> None:
+        self.dimA = StackDim(5.0, 0.1, -0.2)
+        self.dimB = StackDim(6.3, 0.5, -0.8)
+        self.prod = self.dimA * self.dimB
+        self.plus, self.minus = mulCombination(
+            (self.dimA.nom, self.dimA.plus, self.dimA.minus),
+            (self.dimB.nom, self.dimB.plus, self.dimB.minus),
+        )
+        self.commutative_prod = self.dimB * self.dimA
+
+    def test_nominalProd(self) -> None:
+        self.assertAlmostEqual(self.prod.nom, 31.5)
+
+    def test_plusTol(self) -> None:
+        self.assertAlmostEqual(self.prod.plus, 3.18)
+
+    def test_minusTol(self) -> None:
+        self.assertAlmostEqual(self.prod.minus, -5.1)
+
+    def test_distType(self) -> None:
+        self.assertEqual(self.prod.disttype, DistType.DERIVED)
+
+    def test_PN(self) -> None:
+        self.assertIsNone(self.prod.PN)
+
+    def test_note(self) -> None:
+        self.assertEqual(self.prod.note, "Derived.")
+
+    def test_commutativity(self) -> None:
+        self.assertEqual(self.prod, self.commutative_prod)
+
+
+class TestMulNegativeStackDims(unittest.TestCase):
+    @classmethod
+    def setUpClass(self) -> None:
+        self.dimA = StackDim(5.0, 0.1, -0.2)
+        self.dimB = StackDim(-6.3, 0.5, -0.8)
+        self.prod = self.dimA * self.dimB
+        self.plus, self.minus = mulCombination(
+            (self.dimA.nom, self.dimA.plus, self.dimA.minus),
+            (self.dimB.nom, self.dimB.plus, self.dimB.minus),
+        )
+        self.commutative_prod = self.dimB * self.dimA
+
+    def test_nominalProd(self) -> None:
+        self.assertAlmostEqual(self.prod.nom, -31.5)
+
+    def test_plusTol(self) -> None:
+        self.assertAlmostEqual(self.prod.plus, 3.66)
+
+    def test_minusTol(self) -> None:
+        self.assertAlmostEqual(self.prod.minus, -4.71)
+
+    def test_distType(self) -> None:
+        self.assertEqual(self.prod.disttype, DistType.DERIVED)
+
+    def test_PN(self) -> None:
+        self.assertIsNone(self.prod.PN)
+
+    def test_note(self) -> None:
+        self.assertEqual(self.prod.note, "Derived.")
+
+    def test_commutativity(self) -> None:
+        self.assertEqual(self.prod, self.commutative_prod)
+
+
+class TestDivStackDims(unittest.TestCase):
+    @classmethod
+    def setUpClass(self) -> None:
+        self.dimA = StackDim(15.0, 0.1, -0.2)
+        self.dimB = StackDim(5.0, 0.5, -0.8)
+        self.result = self.dimA / self.dimB
+        self.plus, self.minus = divCombination(
+            (self.dimA.nom, self.dimA.plus, self.dimA.minus),
+            (self.dimB.nom, self.dimB.plus, self.dimB.minus),
+        )
+
+    def test_nominal(self) -> None:
+        self.assertAlmostEqual(self.result.nom, 3.0)
+
+    def test_plusTol(self) -> None:
+        self.assertAlmostEqual(self.result.plus, 0.595238095)
+
+    def test_minusTol(self) -> None:
+        self.assertAlmostEqual(self.result.minus, -0.30909090909)
+
+    def test_distType(self) -> None:
+        self.assertEqual(self.result.disttype, DistType.DERIVED)
+
+    def test_PN(self) -> None:
+        self.assertIsNone(self.result.PN)
+
+    def test_note(self) -> None:
+        self.assertEqual(self.result.note, "Derived.")
