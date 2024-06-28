@@ -10,4 +10,3 @@ if __name__ == "__main__":
     except Exception as e:
         logging.error("An error occurred", exc_info=True)
         print(f"An error occurred: {e}")
-        input("Press Enter to exit...")

@@ -12,7 +12,7 @@
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["validation_inputs/test_expression_derivative.txt", "-ST"]
+            "args": ["validation_inputs/test_input.txt", "-STU"]
         }
     ]
 }

@@ -1,5 +1,7 @@
 import argparse
 
+import logging
+
 from tolstack.StackParser import StackParser
 
 from tolstack.StackFormat import (
@@ -36,14 +38,14 @@ def process_files(
         print_lines.append(format_constant_header())
         for key, C in SP.constants.items():
             print_lines.append(format_constant(C))
-            if print_usage:
+            if print_usage and C.key in SP.where_used:
                 print_lines.append(format_usage(C, SP.where_used))
 
         print_lines.append("DIMENSIONS:")
         print_lines.append(format_dimension_header())
         for key, D in SP.dimensions.items():
             print_lines.append(format_dimension(D))
-            if print_usage:
+            if print_usage and D.key in SP.where_used:
                 print_lines.append(format_usage(D, SP.where_used))
 
         print_lines.append("EXPRESSIONS:")
@@ -58,8 +60,6 @@ def process_files(
                 c = SE.contributions()
                 print_lines.append(format_contribution(SE, c))
 
-        c = SP.expressions["E8"].contributions()
-
         if output_file:
             with open(output_file, "w", encoding="utf-8") as out_file:
                 for line in print_lines:
@@ -71,11 +71,11 @@ def process_files(
             pass
 
     except FileNotFoundError:
+        logging.error(f"Error: The file '{input_file}' was not found.", exc_info=True)
         print(f"Error: The file '{input_file}' was not found.")
-        input("Press Enter to exit...")
     except Exception as e:
+        logging.error(f"An error occurred: {e}", exc_info=True)
         print(f"An error occurred: {e}")
-        input("Press Enter to exit...")
 
 
 if __name__ == "__main__":

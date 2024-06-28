@@ -92,7 +92,7 @@ class MyApp(QWidget):
         option_a = self.option_a_checkbox.isChecked()
         option_b = self.option_b_checkbox.isChecked()
 
-        process_files(input_file, save_file, option_a, option_b)
+        process_files(input_file, save_file, True, option_a, option_b)
 
 
 def run_app():

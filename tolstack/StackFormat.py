@@ -30,7 +30,7 @@ def format_usage(K: StackDim, usage):
     if usage[K.key]:
         return f"{12*' '}Used in: {', '.join([f'{expr_key}' for expr_key in usage[K.key]])}"
 
-    return []
+    return ""
 
 
 def format_expression(E: StackExpr):
