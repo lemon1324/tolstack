@@ -153,7 +153,7 @@ class StackDim:
             case _:
                 return self.rng.permutation(self.data)
 
-    def center(self, method: EvalType) -> float:
+    def center(self, method=EvalType.WORSTCASE) -> float:
         """
         Returns the center value for reports.
 
@@ -179,7 +179,7 @@ class StackDim:
             case _:
                 sys.exit(f"Error: cannot evaluate a center value with {method} method.")
 
-    def lower(self, method: EvalType) -> float:
+    def lower(self, method=EvalType.WORSTCASE) -> float:
         """
         Returns the lower value for reports.
 
@@ -205,7 +205,7 @@ class StackDim:
             case _:
                 sys.exit(f"Error: cannot evaluate a lower bound with {method} method.")
 
-    def lower_tol(self, method: EvalType) -> float:
+    def lower_tol(self, method=EvalType.WORSTCASE) -> float:
         """
         Returns the lower tolerance for reports.
 
@@ -220,7 +220,7 @@ class StackDim:
         """
         return self.lower(method) - self.center(method)
 
-    def upper(self, method: EvalType) -> float:
+    def upper(self, method=EvalType.WORSTCASE) -> float:
         """
         Returns the upper value for reports.
 
@@ -246,7 +246,7 @@ class StackDim:
             case _:
                 sys.exit(f"Error: cannot evaluate a lower bound with {method} method.")
 
-    def upper_tol(self, method: EvalType) -> float:
+    def upper_tol(self, method=EvalType.WORSTCASE) -> float:
         """
         Returns the upper tolerance for reports.
 
@@ -260,6 +260,42 @@ class StackDim:
         float: The upper tolerance value based on the provided evaluation method.
         """
         return self.upper(method) - self.center(method)
+
+    def range(self, method=EvalType.WORSTCASE) -> float:
+        """
+        Returns the tolerance band width for reports.
+
+        This returns the difference between the upper and lower tolerance values.
+
+        Parameters:
+        method (EvalType): The evaluation method used for tolerance analysis.
+
+        Returns:
+        float: The range of tolerance values based on the provided evaluation method.
+        """
+        return self.upper(method) - self.lower(method)
+
+    def ideal(self, method=EvalType.WORSTCASE) -> StackDim:
+        """
+        Returns a constant StackDim that matches the nominal value of this StackDim.
+
+        Should only be called on StackDims which have an ideal distribution
+
+        Parameters:
+        method (EvalType): The evaluation method used for tolerance analysis.
+
+        Returns:
+        StackDim: a StackDim with zero tolerance and matching the nominal value of this StackDim.
+        """
+        return StackDim(
+            self.center(method),
+            0,
+            0,
+            DistType.CONSTANT,
+            PN=self.PN,
+            note=self.note,
+            key=self.key,
+        )
 
     def _uniformDist(self) -> ndarray:
         _low = self.nom + self.minus
@@ -535,7 +571,7 @@ class StackDim:
         if isinstance(other, self.__class__):
             return StackDim._divStackDims(other, self)
         elif isinstance(other, (int, float)):
-            return StackDim._mulNumeric(StackDim(other), self)
+            return StackDim._divStackDims(StackDim(other), self)
         else:
             raise TypeError(
                 f"unsupported operand type(s) for +: '{self.__class__}' and '{type(other)}'"

@@ -1,4 +1,4 @@
-from tolstack.StackUtils import is_variable, infix_to_rpn
+from tolstack.StackUtils import is_variable, infix_to_rpn, parse_string_to_numeric
 import sys
 
 
@@ -24,10 +24,12 @@ class TreeParser:
 
         for token in rpn_expression:
             if is_variable(token):
-                if token in self.value_map:
+                if token in self.value_map:  # defined constants and dimensions
                     stack.append(TreeNode(token))
-                elif token in self.expression_map:
+                elif token in self.expression_map:  # previously defined expressions
                     stack.append(self.expression_map[token])
+                elif parse_string_to_numeric(token):  # scalars
+                    stack.append(TreeNode(token))
                 else:
                     sys.exit(
                         f"Error adding node for {token}, not defined in the value or expression map."

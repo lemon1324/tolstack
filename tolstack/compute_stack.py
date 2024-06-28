@@ -7,28 +7,22 @@ from tolstack.StackFormat import (
     format_constant_header,
     format_dimension,
     format_dimension_header,
+    format_usage,
     format_expression,
+    format_sensitivity,
+    format_contribution,
 )
 
 
 def process_files(
     input_file,
     output_file,
+    print_usage,
     conduct_sensitivity_analysis,
     conduct_tolerance_contribution,
 ):
     SP = StackParser()
     print_lines = []
-
-    if conduct_sensitivity_analysis:
-        print_lines.append(
-            "**WARN: Sensitivity analysis not yet implemented, ignoring."
-        )
-
-    if conduct_tolerance_contribution:
-        print_lines.append(
-            "**WARN: Tolerance contribution analysis not yet implemented, ignoring."
-        )
 
     try:
         with open(input_file, "r") as file:
@@ -41,16 +35,30 @@ def process_files(
         print_lines.append("CONSTANTS:")
         print_lines.append(format_constant_header())
         for key, C in SP.constants.items():
-            print_lines.append(format_constant(C, SP.where_used))
+            print_lines.append(format_constant(C))
+            if print_usage:
+                print_lines.append(format_usage(C, SP.where_used))
 
         print_lines.append("DIMENSIONS:")
         print_lines.append(format_dimension_header())
         for key, D in SP.dimensions.items():
-            print_lines.append(format_dimension(D, SP.where_used))
+            print_lines.append(format_dimension(D))
+            if print_usage:
+                print_lines.append(format_usage(D, SP.where_used))
 
         print_lines.append("EXPRESSIONS:")
         for key, SE in SP.expressions.items():
             print_lines.append(format_expression(SE))
+
+            if conduct_sensitivity_analysis:
+                s = SE.sensitivities()
+                print_lines.append(format_sensitivity(SE, s))
+
+            if conduct_tolerance_contribution:
+                c = SE.contributions()
+                print_lines.append(format_contribution(SE, c))
+
+        c = SP.expressions["E8"].contributions()
 
         if output_file:
             with open(output_file, "w", encoding="utf-8") as out_file:
@@ -85,6 +93,12 @@ if __name__ == "__main__":
     #     "-c", "--csv-output", type=str, help="The file to save a CSV report."
     # )
     parser.add_argument(
+        "-U",
+        "--usage",
+        action="store_true",
+        help="Print usage of dimensions in expressions",
+    )
+    parser.add_argument(
         "-S",
         "--sensitivity-analysis",
         action="store_true",
@@ -102,12 +116,14 @@ if __name__ == "__main__":
 
     input_file = args.filename
     output_file = args.output
+    print_usage = args.usage
     conduct_sensitivity_analysis = args.sensitivity_analysis
     conduct_tolerance_contribution = args.tolerance_contribution
 
     process_files(
         input_file,
         output_file,
+        print_usage,
         conduct_sensitivity_analysis,
         conduct_tolerance_contribution,
     )

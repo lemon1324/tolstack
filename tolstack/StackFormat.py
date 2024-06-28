@@ -9,14 +9,8 @@ def format_constant_header():
     return f"{'ID':>10}{'VALUE':>10}  NOTE"
 
 
-def format_constant(C: StackDim, usage):
-    lines = []
-    lines.append(f"{C.key:>10}{C.nom:>10.4g}  {C.note if C.note else ''}")
-    if usage[C.key]:
-        lines.append(
-            f"{12*' '}Used in: {', '.join([f'{expr_key}' for expr_key in usage[C.key]])}"
-        )
-    return "\n".join(lines)
+def format_constant(C: StackDim):
+    return f"{C.key:>10}{C.nom:>10.4g}  {C.note if C.note else ''}"
 
 
 def format_dimension_header():
@@ -25,17 +19,18 @@ def format_dimension_header():
     )
 
 
-def format_dimension(D: StackDim, usage):
-    lines = []
-    lines.append(
+def format_dimension(D: StackDim):
+    return (
         f"{D.key:>10}{D.nom:10.4g}{D.plus:+8.4g}{D.minus:+8.4g}"
         + f"{get_code_from_dist(D.disttype):>6}{D.PN if D.PN else '':>12}  {D.note if D.note else ''}"
     )
-    if usage[D.key]:
-        lines.append(
-            f"{12*' '}Used in: {', '.join([f'{expr_key}' for expr_key in sorted(usage[D.key])])}"
-        )
-    return "\n".join(lines)
+
+
+def format_usage(K: StackDim, usage):
+    if usage[K.key]:
+        return f"{12*' '}Used in: {', '.join([f'{expr_key}' for expr_key in usage[K.key]])}"
+
+    return []
 
 
 def format_expression(E: StackExpr):
@@ -66,3 +61,67 @@ def format_expression(E: StackExpr):
         lines.append(f"{9*' '}Upper Bound:{'NONE':>10}  PASS")
 
     return "\n".join(lines)
+
+
+def format_sensitivity(E: StackExpr, sensitivities):
+    lines = []
+
+    lines.append(f"{7*' '}Sensitivities:")
+
+    scale = max(abs(val) for val in sensitivities.values())
+
+    for var, partial in sensitivities.items():
+        lines.append(
+            f"{'':<9}∂/∂{var}: {partial:8.2g} {format_center_bar(partial/scale)}"
+        )
+
+    return "\n".join(lines)
+
+
+def format_contribution(E: StackExpr, contributions):
+    lines = []
+
+    lines.append(f"{7*' '}Contributions:")
+
+    scale = max(abs(val) for val in contributions.values())
+
+    for var, tol in contributions.items():
+        lines.append(f"{'':<9}{var}: {'±':>3}{tol:8.3g} {format_bar(tol/scale)}")
+
+    return "\n".join(lines)
+
+
+def format_bar(number, width=19) -> str:
+    if not 0 <= number <= 1:
+        raise ValueError("The number must be in the range [0, 1]")
+
+    bar = ["=" if i + 1 / 2 < number * width else " " for i in range(width)]
+
+    return f"[{''.join(bar)}]"
+
+
+def format_center_bar(number, width=19) -> str:
+    if not -1 <= number <= 1:
+        raise ValueError("The number must be in the range [0, 1]")
+
+    if width % 2 == 0:
+        width += 1
+
+    dir = 1 if number > 0 else -1
+
+    bar = [" "] * width
+    center = width // 2
+    for i in range(center, center + dir + int(number * (width // 2)), dir):
+        bar[i] = "="
+
+    bar[center] = "|"
+
+    return f"[{''.join(bar)}]"
+
+
+if __name__ == "__main__":
+    for n in [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1]:
+        print(format_center_bar(n, 6))
+
+    for n in [0, 0.25, 0.5, 0.75, 1]:
+        print(format_bar(n, 9))

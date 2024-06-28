@@ -54,6 +54,25 @@ def parse_string_to_numeric(string: str):
         return None
 
 
+def is_numeric_string(string: str) -> bool:
+    """
+    Whether a string can be converted to a float by parse_string_to_numeric.
+
+    Args:
+        string (str): The input string to be checked.
+
+    Returns:
+        bool: True if the string can be parse, false otherwise.
+    """
+    if string is None:
+        return False
+    try:
+        num = float(string)
+        return False if np.isnan(num) else True
+    except ValueError:
+        return False
+
+
 def percent_to_fraction(percentage: str):
     """
     Converts a percentage string to its corresponding fraction.
@@ -117,6 +136,7 @@ def infix_to_rpn(expression):
         output.append(operator_stack.pop())
 
     return output
+
 
 
 def addCombination(
@@ -191,3 +211,5 @@ def divCombination(
 
     deviations = quotients - nom
     return max(deviations), min(deviations)
+
+
