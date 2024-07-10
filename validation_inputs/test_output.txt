@@ -1,0 +1,106 @@
+CONSTANTS:
+        ID     VALUE  NOTE
+        PI     3.142  
+         g      9.81  Standard acceleration due to gravity
+DIMENSIONS:
+        ID   NOMINAL    PLUS   MINUS  DIST          PN  NOTE
+        D1       0.3  +0.001  -0.005     U   PRT-00010  This is the remainder of the long comment.
+            Used in: E6, E7, E5, E2, E1, E4, E3
+        D2       0.5   +0.01    -0.2    3S   PRT-00011  Example of a normal distribution.
+            Used in: E6, E7, E5, E2, E4, E3
+        D3      2.02   +0.05  -0.101     U              Example of a percentage tolerance.
+            Used in: E7, E6
+EXPRESSIONS:
+   E1: The description of this expression.
+       Expression: D1+D1            Expansion: (D1 + D1)
+       Evaluation Method: Worst Case
+       Nominal:             0.6
+       Value:               0.6 +0.002 -0.01
+         Lower Bound:      NONE  PASS
+         Upper Bound:       0.7  PASS
+       Sensitivities:
+         ∂/∂D1:        2 [         |=========]
+       Contributions:
+         D1:   ±   0.006 [===================]
+   E2: Composite expression
+       Expression: E1 - D2          Expansion: ((D1 + D1) - D2)
+       Evaluation Method: Worst Case
+       Nominal:             0.1
+       Value:               0.1 +0.202 -0.02
+**       Lower Bound:       0.1  FAIL: 0.08
+         Upper Bound:      NONE  PASS
+       Sensitivities:
+         ∂/∂D1:        2 [         |=========]
+         ∂/∂D2:       -1 [     ====|         ]
+       Contributions:
+         D1:   ±   0.006 [=                  ]
+         D2:   ±   0.105 [===================]
+   E3: Composite expression
+       Expression: E2               Expansion: ((D1 + D1) - D2)
+       Evaluation Method: Statistical ±3σ
+       Nominal:             0.1
+       Value:            0.1912 +0.1076 -0.1056
+**       Lower Bound:       0.1  FAIL: 0.08553
+         Upper Bound:      NONE  PASS
+       Sensitivities:
+         ∂/∂D1:        2 [         |=========]
+         ∂/∂D2:       -1 [     ====|         ]
+       Contributions:
+         D1:   ±   0.006 [=                  ]
+         D2:   ±   0.105 [===================]
+   E4: Composite expression
+       Expression: E2               Expansion: ((D1 + D1) - D2)
+       Evaluation Method: Statistical ±1σ
+       Nominal:             0.1
+       Value:             0.191 +0.0351 -0.03513
+         Lower Bound:       0.1  PASS
+         Upper Bound:      NONE  PASS
+       Sensitivities:
+         ∂/∂D1:        2 [         |=========]
+         ∂/∂D2:       -1 [     ====|         ]
+       Contributions:
+         D1:   ±   0.006 [=                  ]
+         D2:   ±   0.105 [===================]
+   E5: Expression with parentheses and a percentage error.
+       Expression: (D1+D2)          Expansion: (D1 + D2)
+       Evaluation Method: Worst Case
+       Nominal:             0.8
+       Value:               0.8 +0.011 -0.205
+         Lower Bound:       0.5  PASS
+         Upper Bound:         1  PASS
+       Sensitivities:
+         ∂/∂D1:        1 [         |=========]
+         ∂/∂D2:        1 [         |=========]
+       Contributions:
+         D1:   ±   0.003 [=                  ]
+         D2:   ±   0.105 [===================]
+   E6: Expression with parentheses and a percentage error.
+       Expression: (D1+D2) * D3     Expansion: ((D1 + D2) * D3)
+       Evaluation Method: Worst Case
+       Nominal:           1.616
+       Value:             1.616 +0.06277 -0.4742
+**       Lower Bound:       1.2  FAIL: 1.142
+         Upper Bound:       1.7  PASS
+       Sensitivities:
+         ∂/∂D1:        2 [         |=========]
+         ∂/∂D2:        2 [         |=========]
+         ∂/∂D3:      0.8 [         |===      ]
+       Contributions:
+         D1:   ± 0.00583 [=                  ]
+         D2:   ±   0.202 [===================]
+         D3:   ±  0.0503 [=====              ]
+   E7: Expression with parentheses and a percentage error
+       Expression: (D1+D2) * D3     Expansion: ((D1 + D2) * D3)
+       Evaluation Method: Statistical ±2σ
+       Nominal:           1.616
+       Value:             1.402 +0.1537 -0.1502
+         Lower Bound:       1.2  PASS
+         Upper Bound:       1.7  PASS
+       Sensitivities:
+         ∂/∂D1:        2 [         |=========]
+         ∂/∂D2:        2 [         |=========]
+         ∂/∂D3:      0.7 [         |===      ]
+       Contributions:
+         D1:   ± 0.00583 [=                  ]
+         D2:   ±   0.202 [===================]
+         D3:   ±  0.0503 [=====              ]

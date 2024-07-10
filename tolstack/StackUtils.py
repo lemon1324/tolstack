@@ -33,6 +33,43 @@ def get_precedence(op):
     return PRECEDENCE[op]
 
 
+def word_wrap(text, width, hanging_indent=0):
+    """
+    Wraps a long string based on the specified width and applies hanging indent,
+    preserving the original whitespace except for those replaced by line breaks.
+
+    Parameters:
+        text (str): The input string to be wrapped.
+        width (int): The maximum width of each line.
+        hanging_indent (int): The number of spaces to add as hanging indent for each line.
+
+    Returns:
+        str: The word-wrapped string with hanging indents and preserved whitespaces.
+    """
+    import re
+
+    # Split the text using regex to capture all whitespace
+    words = re.split(r"(\s+)", text)
+
+    if not words:
+        return ""
+
+    wrapped_lines = []
+    current_line = words[0]
+
+    for i in range(1, len(words)):
+        word = words[i]
+        if len(current_line) + len(word) <= width:
+            current_line += word
+        else:
+            wrapped_lines.append(current_line.rstrip())
+            current_line = " " * hanging_indent + word.lstrip()
+
+    wrapped_lines.append(current_line.rstrip())
+
+    return "\n".join(wrapped_lines)
+
+
 def parse_string_to_numeric(string: str):
     """
     Parses a string and converts it into a numeric value (float).
@@ -138,7 +175,6 @@ def infix_to_rpn(expression):
     return output
 
 
-
 def addCombination(
     a: tuple[float, float], b: tuple[float, float]
 ) -> tuple[float, float]:
@@ -211,5 +247,3 @@ def divCombination(
 
     deviations = quotients - nom
     return max(deviations), min(deviations)
-
-

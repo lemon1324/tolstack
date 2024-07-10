@@ -2,7 +2,11 @@ from tolstack.StackDim import StackDim
 from tolstack.StackExpr import StackExpr
 from tolstack.StackTypes import get_code_from_dist
 
+from tolstack.StackUtils import word_wrap
+
 from math import isinf
+
+FORMAT_WIDTH = 80
 
 
 def format_constant_header():
@@ -10,7 +14,9 @@ def format_constant_header():
 
 
 def format_constant(C: StackDim):
-    return f"{C.key:>10}{C.nom:>10.4g}  {C.note if C.note else ''}"
+    return word_wrap(
+        f"{C.key:>10}{C.nom:>10.4g}  {C.note if C.note else ''}", FORMAT_WIDTH, 22
+    )
 
 
 def format_dimension_header():
@@ -20,23 +26,35 @@ def format_dimension_header():
 
 
 def format_dimension(D: StackDim):
-    return (
+    return word_wrap(
         f"{D.key:>10}{D.nom:10.4g}{D.plus:+8.4g}{D.minus:+8.4g}"
-        + f"{get_code_from_dist(D.disttype):>6}{D.PN if D.PN else '':>12}  {D.note if D.note else ''}"
+        + f"{get_code_from_dist(D.disttype):>6}{D.PN if D.PN else '':>12}  {D.note if D.note else ''}",
+        FORMAT_WIDTH,
+        56,
     )
 
 
 def format_usage(K: StackDim, usage):
     if usage[K.key]:
-        return f"{12*' '}Used in: {', '.join([f'{expr_key}' for expr_key in usage[K.key]])}"
+        return word_wrap(
+            f"{12*' '}Used in: {', '.join([f'{expr_key}' for expr_key in usage[K.key]])}",
+            FORMAT_WIDTH,
+            21,
+        )
 
     return ""
 
 
 def format_expression(E: StackExpr):
     lines = []
-    lines.append(f"{E.key:>5}: {E.note}")
-    lines.append(f"{7*' '}Expression: {E.expr:<15}  Expansion: {E.expand()}")
+    lines.append(word_wrap(f"{E.key:>5}: {E.note}", FORMAT_WIDTH, 7))
+    lines.append(
+        word_wrap(
+            f"{7*' '}Expression: {E.expr:<15}  Expansion: {E.expand()}",
+            FORMAT_WIDTH,
+            47,
+        )
+    )
     lines.append(f"{7*' '}Evaluation Method: {E.method}")
     _val = E.evaluate()
     lines.append(f"{7*' '}Nominal: {_val.nom:15.4g}")
@@ -47,7 +65,7 @@ def format_expression(E: StackExpr):
     if not isinf(E.lower):
         _pass = E.lower < _val.lower(E.method)
         lines.append(
-            f"{'' if _pass else '**':<9}Lower Bound:{E.lower:10.4g}  {'PASS' if _pass else f'FAIL: {_val.lower(E.method):.4g}'}"
+            f"{'' if _pass else '***':<9}Lower Bound:{E.lower:10.4g}  {'PASS' if _pass else f'FAIL: {_val.lower(E.method):.4g}'}"
         )
     else:
         lines.append(f"{9*' '}Lower Bound:{'NONE':>10}  PASS")
@@ -55,7 +73,7 @@ def format_expression(E: StackExpr):
     if not isinf(E.upper):
         _pass = E.upper > _val.upper(E.method)
         lines.append(
-            f"{'' if _pass else '**':<9}Upper Bound:{E.upper:10.4g}  {'PASS' if _pass else f'FAIL: {_val.upper(E.method):.4g}'}"
+            f"{'' if _pass else '***':<9}Upper Bound:{E.upper:10.4g}  {'PASS' if _pass else f'FAIL: {_val.upper(E.method):.4g}'}"
         )
     else:
         lines.append(f"{9*' '}Upper Bound:{'NONE':>10}  PASS")

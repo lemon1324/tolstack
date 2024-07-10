@@ -16,6 +16,68 @@ from tolstack.StackFormat import (
 )
 
 
+def _process_stack_parser(
+    SP, print_usage, conduct_sensitivity_analysis, conduct_tolerance_contribution
+):
+    print_lines = []
+
+    value_map = SP.constants | SP.dimensions
+
+    print_lines.append("CONSTANTS:")
+    print_lines.append(format_constant_header())
+    for key, C in SP.constants.items():
+        print_lines.append(format_constant(C))
+        if print_usage and C.key in SP.where_used:
+            print_lines.append(format_usage(C, SP.where_used))
+
+    print_lines.append("DIMENSIONS:")
+    print_lines.append(format_dimension_header())
+    for key, D in SP.dimensions.items():
+        print_lines.append(format_dimension(D))
+        if print_usage and D.key in SP.where_used:
+            print_lines.append(format_usage(D, SP.where_used))
+
+    print_lines.append("EXPRESSIONS:")
+    for key, SE in SP.expressions.items():
+        print_lines.append(format_expression(SE))
+
+        if conduct_sensitivity_analysis:
+            s = SE.sensitivities()
+            print_lines.append(format_sensitivity(SE, s))
+
+        if conduct_tolerance_contribution:
+            c = SE.contributions()
+            print_lines.append(format_contribution(SE, c))
+        print_lines[-1] = print_lines[-1] + "\n"
+
+    return print_lines
+
+
+def process_lines(
+    lines, print_usage, conduct_sensitivity_analysis, conduct_tolerance_contribution
+):
+    SP = StackParser()
+    SP.parse(lines)
+    return _process_stack_parser(
+        SP, print_usage, conduct_sensitivity_analysis, conduct_tolerance_contribution
+    )
+
+
+def process_data(
+    constants_data,
+    dimensions_data,
+    expressions_data,
+    print_usage,
+    conduct_sensitivity_analysis,
+    conduct_tolerance_contribution,
+):
+    SP = StackParser()
+    SP.parse_from_data(constants_data, dimensions_data, expressions_data)
+    return _process_stack_parser(
+        SP, print_usage, conduct_sensitivity_analysis, conduct_tolerance_contribution
+    )
+
+
 def process_files(
     input_file,
     output_file,
@@ -23,42 +85,16 @@ def process_files(
     conduct_sensitivity_analysis,
     conduct_tolerance_contribution,
 ):
-    SP = StackParser()
-    print_lines = []
-
     try:
         with open(input_file, "r") as file:
             lines = file.readlines()
 
-        SP.parse(lines)
-
-        value_map = SP.constants | SP.dimensions
-
-        print_lines.append("CONSTANTS:")
-        print_lines.append(format_constant_header())
-        for key, C in SP.constants.items():
-            print_lines.append(format_constant(C))
-            if print_usage and C.key in SP.where_used:
-                print_lines.append(format_usage(C, SP.where_used))
-
-        print_lines.append("DIMENSIONS:")
-        print_lines.append(format_dimension_header())
-        for key, D in SP.dimensions.items():
-            print_lines.append(format_dimension(D))
-            if print_usage and D.key in SP.where_used:
-                print_lines.append(format_usage(D, SP.where_used))
-
-        print_lines.append("EXPRESSIONS:")
-        for key, SE in SP.expressions.items():
-            print_lines.append(format_expression(SE))
-
-            if conduct_sensitivity_analysis:
-                s = SE.sensitivities()
-                print_lines.append(format_sensitivity(SE, s))
-
-            if conduct_tolerance_contribution:
-                c = SE.contributions()
-                print_lines.append(format_contribution(SE, c))
+        print_lines = process_lines(
+            lines,
+            print_usage,
+            conduct_sensitivity_analysis,
+            conduct_tolerance_contribution,
+        )
 
         if output_file:
             with open(output_file, "w", encoding="utf-8") as out_file:
@@ -68,7 +104,6 @@ def process_files(
             # Print the content to the console if no output file is specified
             for line in print_lines:
                 print(line)
-            pass
 
     except FileNotFoundError:
         logging.error(f"Error: The file '{input_file}' was not found.", exc_info=True)

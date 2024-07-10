@@ -1,5 +1,5 @@
 *CONSTANTS, VALUE, NOTE
-  PI, 3.1415
+  PI, 3.1415, The number π is a mathematical constant that is the ratio of a circle's circumference to its diameter, approximately equal to 3.14159. The number π appears in many formulae across mathematics and physics.
   g,9.81, Standard acceleration due to gravity
 *DIMENSIONS, NOMINAL, PLUS, MINUS, DISTRIBUTION, PART NUMBER, NOTE
   D1, 0.3, .001, -5E-3, U, PRT-00010, This is the remainder of the long comment.
@@ -13,3 +13,4 @@
   E5, (D1+D2), .5, 1, W, Expression with parentheses and a percentage error.
   E6, (D1+D2) * D3, 1.2, 1.7, W, Expression with parentheses and a percentage error.
   E7, (D1+D2) * D3, 1.2, 1.7, 2S, Expression with parentheses and a percentage error, 2-sigma.
+  E8, (D2/D3) - (D3/(D1+D2)),,,3S, Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus vestibulum justo non mauris viverra, tempor fringilla augue convallis. Praesent sed vulputate orci. Nunc blandit quam a tortor aliquet vehicula. Duis.

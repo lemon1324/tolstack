@@ -3,7 +3,7 @@ import sys
 from collections import defaultdict
 
 from tolstack.StackDim import StackDim
-from tolstack.StackUtils import parse_string_to_numeric, percent_to_fraction
+from tolstack.StackUtils import parse_string_to_numeric, percent_to_fraction, word_wrap
 
 from tolstack.StackExpr import StackExpr
 
@@ -35,6 +35,17 @@ class StackParser:
             elif self.category:
                 self._handle_category(line.strip())
 
+    def parse_from_data(self, constants_data, dimensions_data, expressions_data):
+        for constant_row in constants_data:
+            self._handle_constants_tokens(constant_row)
+        for dimension_row in dimensions_data:
+            self._handle_dimensions_tokens(dimension_row)
+
+        self.TP = TreeParser(self.constants | self.dimensions)
+
+        for expr_row in expressions_data:
+            self._handle_expressions_tokens(expr_row)
+
     def _handle_category(self, line):
         match self.category:
             case "constants":
@@ -49,9 +60,7 @@ class StackParser:
                     file=sys.stderr,
                 )
 
-    def _handle_constants(self, line):
-        tokens = line.split(",")
-
+    def _handle_constants_tokens(self, tokens):
         if len(tokens) < 2:
             print(
                 f"Attempting to define constant {tokens[0]}, but not enough items in input record",
@@ -83,9 +92,11 @@ class StackParser:
         )
         self.constants[_key] = _const
 
-    def _handle_dimensions(self, line):
-        tokens = line.split(",")
+    def _handle_constants(self, line):
+        tokens = [token.strip() for token in line.split(",")]
+        self._handle_constants_tokens(tokens)
 
+    def _handle_dimensions_tokens(self, tokens):
         if len(tokens) < 4:
             print(
                 f"Attempting to define dimension {tokens[0]}, but not enough items in input record",
@@ -147,9 +158,11 @@ class StackParser:
         )
         self.dimensions[_key] = _dim
 
-    def _handle_expressions(self, line):
+    def _handle_dimensions(self, line):
         tokens = [token.strip() for token in line.split(",")]
+        self._handle_dimensions_tokens(tokens)
 
+    def _handle_expressions_tokens(self, tokens):
         if len(tokens) < 4:
             print(
                 f"Attempting to define expression {tokens[0]}, but not enough items in input record",
@@ -190,23 +203,9 @@ class StackParser:
         for var_key in _expr.referenced_values():
             self.where_used[var_key].add(_expr.key)
 
-    def format_constants(self):
-        _out = ""
-        for key, val in self.constants.items():
-            _out += f"  {key:>8}{val}\n"
-        return _out[:-1]
-
-    def format_dimensions(self):
-        _out = ""
-        for key, val in self.dimensions.items():
-            _out += f"  {key:>8}{val}\n"
-        return _out[:-1]
-
-    def format_expressions(self):
-        _out = ""
-        for key, val in self.expressions.items():
-            _out += f"  {key:>8}{val}\n"
-        return _out[:-1]
+    def _handle_expressions(self, line):
+        tokens = [token.strip() for token in line.split(",")]
+        self._handle_expressions_tokens(tokens)
 
 
 if __name__ == "__main__":
