@@ -606,12 +606,12 @@ class MainWindow(QMainWindow):
         self.constants_widget.setCurrentCell(0, 0, QItemSelectionModel.ClearAndSelect)
 
     def switch_focus_to_dimensions(self):
-        self.constants_widget.setFocus()
-        self.constants_widget.setCurrentCell(0, 0, QItemSelectionModel.ClearAndSelect)
+        self.dimensions_widget.setFocus()
+        self.dimensions_widget.setCurrentCell(0, 0, QItemSelectionModel.ClearAndSelect)
 
     def switch_focus_to_expressions(self):
-        self.constants_widget.setFocus()
-        self.constants_widget.setCurrentCell(0, 0, QItemSelectionModel.ClearAndSelect)
+        self.expressions_widget.setFocus()
+        self.expressions_widget.setCurrentCell(0, 0, QItemSelectionModel.ClearAndSelect)
 
 
 def run_app():
