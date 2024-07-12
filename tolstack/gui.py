@@ -50,12 +50,12 @@ class EditableTableWidget(QTableWidget):
             row_data = []
             for column in range(self.columnCount()):
                 item = self.item(row, column)
-                if item:
-                    row_data.append(item.text().strip())
-                else:
-                    row_data.append("")
+                row_data.append(item.text().strip() if item else "")
             data_list.append(row_data)
         return data_list
+
+    def clear_all_data(self):
+        self.setRowCount(0)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Delete:
@@ -108,11 +108,12 @@ class MainWindow(QMainWindow):
     WINDOW_HEIGHT = 800
 
     SAVE_FILE = None
+    CONTENTS_AT_SAVE = None
 
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("PyQt5 Application")
+        self.setWindowTitle("tolstack")
         self.resize(self.WINDOW_WIDTH, self.WINDOW_HEIGHT)
 
         # Central widget
@@ -276,6 +277,11 @@ class MainWindow(QMainWindow):
         edit_menu = menubar.addMenu("Edit")
 
         # Add actions to the File menu
+        new_action = QAction("New", self)
+        new_action.setShortcut("Ctrl+N")
+        new_action.setStatusTip("Open new analysis (Ctrl+N)")
+        new_action.triggered.connect(self.new_analysis)
+
         open_action = QAction("Open", self)
         open_action.setShortcut("Ctrl+O")
         open_action.setStatusTip("Open input definitions (Ctrl+O)")
@@ -295,6 +301,7 @@ class MainWindow(QMainWindow):
         export_action.setStatusTip("Export result to file (Ctrl+E)")
         export_action.triggered.connect(self.save_outputs)
 
+        file_menu.addAction(new_action)
         file_menu.addAction(open_action)
         file_menu.addAction(save_inputs_action)
         file_menu.addAction(save_inputs_as_action)
@@ -333,6 +340,12 @@ class MainWindow(QMainWindow):
         # Standalone shortcuts
         constants_shortcut = QShortcut(QKeySequence("Ctrl+Shift+1"), self)
         constants_shortcut.activated.connect(self.switch_focus_to_constants)
+
+        dimensions_shortcut = QShortcut(QKeySequence("Ctrl+Shift+2"), self)
+        dimensions_shortcut.activated.connect(self.switch_focus_to_dimensions)
+
+        expressions_shortcut = QShortcut(QKeySequence("Ctrl+Shift+3"), self)
+        expressions_shortcut.activated.connect(self.switch_focus_to_expressions)
 
     def update_table_display(self):
         sample_data = [
@@ -431,6 +444,39 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.show_non_fatal_error(e)
 
+    def new_analysis(self):
+        if self.has_unsaved_changes():
+            proceed = self.ask_to_save()
+
+            if not proceed:
+                return
+
+        self.constants_widget.clear_all_data()
+        self.dimensions_widget.clear_all_data()
+        self.expressions_widget.clear_all_data()
+
+        self.text_edit.setText("")
+
+        self.SAVE_FILE = None
+
+        self.statusBar().showMessage("New analysis", 1500)
+
+    def ask_to_save(self):
+        msg_box = QMessageBox()
+        msg_box.setIcon(QMessageBox.Warning)
+        msg_box.setWindowTitle("Unsaved Changes")
+        msg_box.setText(
+            "You have unsaved changes. Do you want to continue without saving?"
+        )
+        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg_box.setDefaultButton(QMessageBox.No)
+
+        # Show the message box and get the user's response
+        response = msg_box.exec_()
+
+        # Return True if the user chooses 'Yes', otherwise return False
+        return response == QMessageBox.Yes
+
     def save_as_inputs(self):
         options = QFileDialog.Options()
         self.SAVE_FILE, _ = QFileDialog.getSaveFileName(
@@ -472,12 +518,27 @@ class MainWindow(QMainWindow):
                 for row_data in self.expressions_widget.get_all_data():
                     file.write(",".join(row_data) + "\n")
 
+                self.store_state_at_save()
+
+    def store_state_at_save(self):
+        self.CONTENTS_AT_SAVE = self.get_current_state()
+
+    def has_unsaved_changes(self):
+        return self.CONTENTS_AT_SAVE != self.get_current_state()
+
+    def get_current_state(self):
+        return [
+            self.constants_widget.get_all_data(),
+            self.dimensions_widget.get_all_data(),
+            self.expressions_widget.get_all_data(),
+        ]
+
     def open_file(self):
         options = QFileDialog.Options()
-        file_name, _ = QFileDialog.getOpenFileName(
+        self.SAVE_FILE, _ = QFileDialog.getOpenFileName(
             self, "Open File", "", "All Files (*);;Text Files (*.txt)", options=options
         )
-        self.open_file_from_name(file_name)
+        self.open_file_from_name(self.SAVE_FILE)
 
     def open_file_from_name(self, file_name):
         if file_name:
@@ -508,6 +569,7 @@ class MainWindow(QMainWindow):
                         if current_widget is not None:
                             data = line.split(",", split_limit)
                             current_widget.add_row(data)
+                self.store_state_at_save()
 
     def save_outputs(self):
         options = QFileDialog.Options()
@@ -540,9 +602,15 @@ class MainWindow(QMainWindow):
         msg_box.exec_()
 
     def switch_focus_to_constants(self):
-        # Set focus to table2
         self.constants_widget.setFocus()
+        self.constants_widget.setCurrentCell(0, 0, QItemSelectionModel.ClearAndSelect)
 
+    def switch_focus_to_dimensions(self):
+        self.constants_widget.setFocus()
+        self.constants_widget.setCurrentCell(0, 0, QItemSelectionModel.ClearAndSelect)
+
+    def switch_focus_to_expressions(self):
+        self.constants_widget.setFocus()
         self.constants_widget.setCurrentCell(0, 0, QItemSelectionModel.ClearAndSelect)
 
 

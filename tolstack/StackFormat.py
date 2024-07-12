@@ -50,12 +50,19 @@ def format_expression(E: StackExpr):
     lines.append(word_wrap(f"{E.key:>5}: {E.note}", FORMAT_WIDTH, 7))
     lines.append(
         word_wrap(
-            f"{7*' '}Expression: {E.expr:<15}  Expansion: {E.expand()}",
+            f"{7*' '}Expression: {E.expr}",
             FORMAT_WIDTH,
             47,
         )
     )
-    lines.append(f"{7*' '}Evaluation Method: {E.method}")
+    lines.append(
+        word_wrap(
+            f"{7*' '}Expansion:  {E.expand()}",
+            FORMAT_WIDTH,
+            47,
+        )
+    )
+    lines.append(f"{7*' '}Evaluation: {E.method}")
     _val = E.evaluate()
     lines.append(f"{7*' '}Nominal: {_val.nom:15.4g}")
     lines.append(
@@ -90,7 +97,7 @@ def format_sensitivity(E: StackExpr, sensitivities):
 
     for var, partial in sensitivities.items():
         lines.append(
-            f"{'':<9}∂/∂{var}: {partial:8.2g} {format_center_bar(partial/scale)}"
+            f"{'∂/∂'+var:>16}: {partial:10.2g} {format_center_bar(partial/scale)}"
         )
 
     return "\n".join(lines)
@@ -104,7 +111,7 @@ def format_contribution(E: StackExpr, contributions):
     scale = max(abs(val) for val in contributions.values())
 
     for var, tol in contributions.items():
-        lines.append(f"{'':<9}{var}: {'±':>3}{tol:8.3g} {format_bar(tol/scale)}")
+        lines.append(f"{var:>16}: {f'±{tol:.3g}'.rjust(10)} {format_bar(tol/scale)}")
 
     return "\n".join(lines)
 
