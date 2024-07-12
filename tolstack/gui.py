@@ -15,12 +15,17 @@ from PyQt5.QtWidgets import (
     QSplitter,
     QHeaderView,
     QLabel,
+    QShortcut,
+    QAction,
+    QMessageBox,
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QItemSelectionModel
 
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QKeySequence
 
 from tolstack.compute_stack import process_data
+
+import traceback
 
 
 class EditableTableWidget(QTableWidget):
@@ -51,6 +56,13 @@ class EditableTableWidget(QTableWidget):
                     row_data.append("")
             data_list.append(row_data)
         return data_list
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Delete:
+            for item in self.selectedItems():
+                item.setText("")
+        else:
+            super().keyPressEvent(event)
 
 
 class EditableConstantWidget(EditableTableWidget):
@@ -94,6 +106,8 @@ class EditableExpressionWidget(EditableTableWidget):
 class MainWindow(QMainWindow):
     WINDOW_WIDTH = 1200
     WINDOW_HEIGHT = 800
+
+    SAVE_FILE = None
 
     def __init__(self):
         super().__init__()
@@ -221,7 +235,7 @@ class MainWindow(QMainWindow):
 
         # Update button
         update_button = QPushButton("Update")
-        update_button.clicked.connect(self.update_action)
+        update_button.clicked.connect(self.update_results)
 
         # Horizontal layout for checkboxes and update button
         checkbox_layout = QHBoxLayout()
@@ -244,27 +258,6 @@ class MainWindow(QMainWindow):
         self.text_edit.setFont(fixed_font)
         right_layout.addWidget(self.text_edit)
 
-        # Save and Open Buttons moved beneath the text_edit element
-        save_inputs_button = QPushButton("Save Inputs")
-        open_button = QPushButton("Open")
-        save_outputs_button = QPushButton("Save Outputs")
-
-        save_inputs_button.clicked.connect(self.save_inputs)
-        open_button.clicked.connect(self.open_file)
-        save_outputs_button.clicked.connect(self.save_outputs)
-
-        # Add buttons in a horizontal layout
-        button_layout = QHBoxLayout()
-        button_layout.addWidget(save_inputs_button)
-        button_layout.addWidget(open_button)
-        button_layout.addWidget(save_outputs_button)
-
-        # Set equal size policy for all buttons
-        for button in [save_inputs_button, open_button, save_outputs_button]:
-            button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-
-        right_layout.addLayout(button_layout)
-
         right_widget = QWidget()
         right_widget.setLayout(right_layout)
 
@@ -276,6 +269,70 @@ class MainWindow(QMainWindow):
 
         main_layout.addWidget(splitter)
         central_widget.setLayout(main_layout)
+
+        # Create Menu Bar
+        menubar = self.menuBar()
+        file_menu = menubar.addMenu("File")
+        edit_menu = menubar.addMenu("Edit")
+
+        # Add actions to the File menu
+        open_action = QAction("Open", self)
+        open_action.setShortcut("Ctrl+O")
+        open_action.setStatusTip("Open input definitions (Ctrl+O)")
+        open_action.triggered.connect(self.open_file)
+
+        save_inputs_action = QAction("Save", self)
+        save_inputs_action.setShortcut("Ctrl+S")
+        save_inputs_action.setStatusTip("Save input definitions (Ctrl+S)")
+        save_inputs_action.triggered.connect(self.save_inputs)
+
+        save_inputs_as_action = QAction("Save As...", self)
+        save_inputs_as_action.setStatusTip("Save input definitions as...")
+        save_inputs_as_action.triggered.connect(self.save_inputs)
+
+        export_action = QAction("Export", self)
+        export_action.setShortcut("Ctrl+E")
+        export_action.setStatusTip("Export result to file (Ctrl+E)")
+        export_action.triggered.connect(self.save_outputs)
+
+        file_menu.addAction(open_action)
+        file_menu.addAction(save_inputs_action)
+        file_menu.addAction(save_inputs_as_action)
+        file_menu.addAction(export_action)
+
+        # Add actions to the Edit menu
+        add_constant_action = QAction("Add constant", self)
+        add_constant_action.setShortcut("Ctrl+1")
+        add_constant_action.setStatusTip("Add new constant (Ctrl+1)")
+        add_constant_action.triggered.connect(self.add_constant)
+
+        add_dimension_action = QAction("Add dimension", self)
+        add_dimension_action.setShortcut("Ctrl+2")
+        add_dimension_action.setStatusTip("Add new dimension (Ctrl+2)")
+        add_dimension_action.triggered.connect(self.add_dimension)
+
+        add_expression_action = QAction("Add expression", self)
+        add_expression_action.setShortcut("Ctrl+3")
+        add_expression_action.setStatusTip("Add new constant (Ctrl+3)")
+        add_expression_action.triggered.connect(self.add_expression)
+
+        update_action = QAction("Update", self)
+        update_action.setShortcut("Ctrl+R")
+        update_action.setStatusTip("Update results (Ctrl+R)")
+        update_action.triggered.connect(self.update_results)
+
+        edit_menu.addAction(add_constant_action)
+        edit_menu.addAction(add_dimension_action)
+        edit_menu.addAction(add_expression_action)
+        edit_menu.addSeparator()
+        edit_menu.addAction(update_action)
+
+        # Create a Status Bar
+        self.statusBar().showMessage("Ready")
+
+        # Standalone shortcuts
+        constants_shortcut = QShortcut(QKeySequence("Ctrl+Shift+1"), self)
+        constants_shortcut.activated.connect(self.switch_focus_to_constants)
 
     def update_table_display(self):
         sample_data = [
@@ -293,6 +350,13 @@ class MainWindow(QMainWindow):
         new_data = ["Cxx", 0.0, "-"]
         self.constants_widget.add_row(new_data)
 
+        if self.constants_widget.rowCount() > 0:
+            last_row_index = self.constants_widget.rowCount() - 1
+            self.constants_widget.setCurrentCell(last_row_index, 0)
+            self.constants_widget.editItem(
+                self.constants_widget.item(last_row_index, 0)
+            )
+
     def delete_constant(self):
         selected_rows = sorted(
             set(index.row() for index in self.constants_widget.selectedIndexes()),
@@ -302,8 +366,15 @@ class MainWindow(QMainWindow):
             self.constants_widget.removeRow(row)
 
     def add_dimension(self):
-        new_data = ["Dxx", 0.0, 0.0, 0.0, "-", "-", "-"]
+        new_data = ["Dxx", 0.0, 0.0, 0.0, "U", "-", "-"]
         self.dimensions_widget.add_row(new_data)
+
+        if self.dimensions_widget.rowCount() > 0:
+            last_row_index = self.dimensions_widget.rowCount() - 1
+            self.dimensions_widget.setCurrentCell(last_row_index, 0)
+            self.dimensions_widget.editItem(
+                self.dimensions_widget.item(last_row_index, 0)
+            )
 
     def delete_dimension(self):
         selected_rows = sorted(
@@ -314,8 +385,15 @@ class MainWindow(QMainWindow):
             self.dimensions_widget.removeRow(row)
 
     def add_expression(self):
-        new_data = ["Exx", 0.0, 0.0, 0.0, "W", "-"]
+        new_data = ["Exx", "-", "", "", "W", "-"]
         self.expressions_widget.add_row(new_data)
+
+        if self.expressions_widget.rowCount() > 0:
+            last_row_index = self.expressions_widget.rowCount() - 1
+            self.expressions_widget.setCurrentCell(last_row_index, 0)
+            self.expressions_widget.editItem(
+                self.expressions_widget.item(last_row_index, 0)
+            )
 
     def delete_expression(self):
         selected_rows = sorted(
@@ -325,7 +403,7 @@ class MainWindow(QMainWindow):
         for row in selected_rows:
             self.expressions_widget.removeRow(row)
 
-    def update_action(self):
+    def update_results(self):
         c_data = self.constants_widget.get_all_data()
         d_data = self.dimensions_widget.get_all_data()
         e_data = self.expressions_widget.get_all_data()
@@ -334,31 +412,51 @@ class MainWindow(QMainWindow):
         S = self.sensitivity_checkbox.isChecked()
         T = self.contribution_checkbox.isChecked()
 
-        print_lines = process_data(
-            constants_data=c_data,
-            dimensions_data=d_data,
-            expressions_data=e_data,
-            print_usage=U,
-            conduct_sensitivity_analysis=S,
-            conduct_tolerance_contribution=T,
-        )
+        try:
+            print_lines = process_data(
+                constants_data=c_data,
+                dimensions_data=d_data,
+                expressions_data=e_data,
+                print_usage=U,
+                conduct_sensitivity_analysis=S,
+                conduct_tolerance_contribution=T,
+            )
 
-        self.text_edit.setPlainText("\n".join(print_lines))
+            self.text_edit.setPlainText("\n".join(print_lines))
+            self.statusBar().showMessage("Updated results", 1500)
+        except RuntimeError as r:
+            self.show_non_fatal_error(r)
+        except ValueError as v:
+            self.show_non_fatal_error(v)
+        except Exception as e:
+            self.show_non_fatal_error(e)
 
-    def save_inputs(self):
+    def save_as_inputs(self):
         options = QFileDialog.Options()
-        file_name, _ = QFileDialog.getSaveFileName(
+        self.SAVE_FILE, _ = QFileDialog.getSaveFileName(
             self,
-            "Save Inputs",
+            "Save Input Definition",
             "",
             "All Files (*);;Text Files (*.txt)",
             options=options,
         )
-        self.save_inputs_to_name(file_name)
+        self.save_inputs_to_name(self.SAVE_FILE)
+
+    def save_inputs(self):
+        if not self.SAVE_FILE:
+            options = QFileDialog.Options()
+            self.SAVE_FILE, _ = QFileDialog.getSaveFileName(
+                self,
+                "Save Input Definition",
+                "",
+                "All Files (*);;Text Files (*.txt)",
+                options=options,
+            )
+        self.save_inputs_to_name(self.SAVE_FILE)
 
     def save_inputs_to_name(self, file_name):
         if file_name:
-            with open(file_name, "w") as file:
+            with open(file_name, "w", encoding="utf-8") as file:
                 file.write("*CONSTANTS, VALUE, NOTE" + "\n")
                 for row_data in self.constants_widget.get_all_data():
                     file.write(",".join(row_data) + "\n")
@@ -424,11 +522,36 @@ class MainWindow(QMainWindow):
             with open(file_name, "w", encoding="utf-8") as file:
                 file.write(self.text_edit.toPlainText())
 
+    def show_non_fatal_error(self, e):
+        # Create a message box
+        msg_box = QMessageBox()
+        msg_box.setIcon(QMessageBox.Warning)  # Set the icon to Warning
+        msg_box.setWindowTitle("Error")
+        if isinstance(e, (ValueError, RuntimeError)) and len(e.args) > 1:
+            msg_box.setText(e.args[0])
+            msg_box.setInformativeText("\n".join(e.args[1:]))
+        else:
+            msg_box.setText(f"Unexpected error: {e.args[0]}")
+            tb_str = traceback.format_exc()
+            msg_box.setInformativeText(f"{tb_str}")
+        msg_box.setStandardButtons(QMessageBox.Ok)  # Set a standard OK button
 
-if __name__ == "__main__":
-    import sys
+        # Show the message box
+        msg_box.exec_()
 
+    def switch_focus_to_constants(self):
+        # Set focus to table2
+        self.constants_widget.setFocus()
+
+        self.constants_widget.setCurrentCell(0, 0, QItemSelectionModel.ClearAndSelect)
+
+
+def run_app():
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
+
+
+if __name__ == "__main__":
+    run_app()

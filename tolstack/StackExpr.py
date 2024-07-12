@@ -10,8 +10,6 @@ from tolstack.StackUtils import parse_string_to_numeric, is_numeric_string
 
 from typing import Dict
 
-import sys
-
 
 class StackExpr:
     def __init__(
@@ -92,8 +90,8 @@ class StackExpr:
         if node.left is None and node.right is None:
             return self._getLeafValue(node.key)
 
-        _left = self._evaluate(node.left)
-        _right = self._evaluate(node.right)
+        _left = self._evaluate(node.left) if node.left else None
+        _right = self._evaluate(node.right) if node.right else None
 
         match node.key:
             case "+":
@@ -104,8 +102,12 @@ class StackExpr:
                 return _left * _right
             case "/":
                 return _left / _right
+            case "u-":
+                return -_right
             case _:
-                sys.exit(f"Error computing '{node.key}', operation not defined.")
+                raise ValueError(
+                    f"Error computing '{node.key}' when evaluating expression, operation not defined."
+                )
 
     def _evaluateDerivative(self, node, key) -> tuple[float, float]:
         # base case, node refers to a StackDim input variable or scalar
@@ -123,8 +125,10 @@ class StackExpr:
             else:
                 return (nom, 1)
 
-        _left, _dleft = self._evaluateDerivative(node.left, key)
-        _right, _dright = self._evaluateDerivative(node.right, key)
+        _left, _dleft = self._evaluateDerivative(node.left, key) if node.left else None
+        _right, _dright = (
+            self._evaluateDerivative(node.right, key) if node.right else None
+        )
 
         match node.key:
             case "+":
@@ -140,8 +144,12 @@ class StackExpr:
                     _left / _right,
                     (_right * _dleft - _left * _dright) / (_right**2),
                 )
+            case "u-":
+                return (-_right, -_dright)
             case _:
-                sys.exit(f"Error computing '{node.key}', operation not defined.")
+                raise ValueError(
+                    f"Error computing '{node.key}' when evaluating derivative, operation not defined."
+                )
 
     def _evaluate_ideal(self, node, key):
         # base case, node refers to a StackDim input variable or scalar
@@ -157,8 +165,8 @@ class StackExpr:
             else:
                 return value.ideal()
 
-        _left = self._evaluate_ideal(node.left, key)
-        _right = self._evaluate_ideal(node.right, key)
+        _left = self._evaluate_ideal(node.left, key) if node.left else None
+        _right = self._evaluate_ideal(node.right, key) if node.right else None
 
         match node.key:
             case "+":
@@ -169,24 +177,37 @@ class StackExpr:
                 return _left * _right
             case "/":
                 return _left / _right
+            case "u-":
+                return -_right
             case _:
-                sys.exit(f"Error computing '{node.key}', operation not defined.")
+                raise ValueError(
+                    f"Error computing '{node.key}' when evaluating contribution, operation not defined."
+                )
 
     def _format_tree(self, node):
         if node.left is None and node.right is None:
             return node.key
 
-        _left = self._format_tree(node.left)
-        _right = self._format_tree(node.right)
+        _left = self._format_tree(node.left) if node.left else None
+        _right = self._format_tree(node.right) if node.right else None
 
-        return "(" + _left + " " + node.key + " " + _right + ")"
+        if _left:
+            return "(" + _left + " " + node.key + " " + _right + ")"
+        else:
+            match node.key:
+                case "u-":
+                    return "-" + _right
+                case _:
+                    raise ValueError(
+                        f"Error computing '{node.key}' when formatting tree, operation not defined."
+                    )
 
     def _referenced_values(self, node):
         if node.left is None and node.right is None:
             return {node.key} if node.key in self.value_map else set()
 
-        _left = self._referenced_values(node.left)
-        _right = self._referenced_values(node.right)
+        _left = self._referenced_values(node.left) if node.left else set()
+        _right = self._referenced_values(node.right) if node.right else set()
 
         return _left | _right
 
@@ -204,6 +225,6 @@ class StackExpr:
             self.value_map = value_map
 
         if self.value_map is None:
-            sys.exit(
+            raise RuntimeError(
                 f"Cannot evaluate expression {self.key} without map of defined values."
             )

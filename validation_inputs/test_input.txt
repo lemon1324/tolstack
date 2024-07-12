@@ -14,3 +14,4 @@
   E6, (D1+D2) * D3, 1.2, 1.7, W, Expression with parentheses and a percentage error.
   E7, (D1+D2) * D3, 1.2, 1.7, 2S, Expression with parentheses and a percentage error, 2-sigma.
   E8, (D2/D3) - (D3/(D1+D2)),,,3S, Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus vestibulum justo non mauris viverra, tempor fringilla augue convallis. Praesent sed vulputate orci. Nunc blandit quam a tortor aliquet vehicula. Duis.
+  E9, 0-D1,,,W, Test case for zero values.

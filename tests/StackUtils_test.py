@@ -20,6 +20,9 @@ class TestExpressionFunctions(unittest.TestCase):
         self.assertTrue(is_operator("-"))
         self.assertFalse(is_operator("a"))
         self.assertFalse(is_operator("1"))
+        self.assertFalse(
+            is_operator("u-")
+        )  # unary operator encoding is not an operator for infix expressions
 
     def test_is_variable(self):
         self.assertTrue(is_variable("D1"))
@@ -27,6 +30,9 @@ class TestExpressionFunctions(unittest.TestCase):
         self.assertTrue(is_variable("LONG_NAME_EXPRESSION"))
         self.assertFalse(is_variable("+="))
         self.assertFalse(is_variable("*"))
+        self.assertFalse(
+            is_variable("u-")
+        )  # unary operator encoding is not a variable in RPN expressions
 
     def test_get_precedence(self):
         self.assertEqual(get_precedence("+"), 1)
@@ -35,11 +41,32 @@ class TestExpressionFunctions(unittest.TestCase):
         with self.assertRaises(KeyError):
             get_precedence("(")
 
-    def test_parse_string_to_numeric(self):
-        self.assertEqual(parse_string_to_numeric("123.45"), 123.45)
-        self.assertEqual(parse_string_to_numeric("0"), 0.0)
-        self.assertIsNone(parse_string_to_numeric("abc"))
-        self.assertIsNone(parse_string_to_numeric("12a"))
+
+class TestIsNumericString(unittest.TestCase):
+
+    def test_valid_numeric_strings(self):
+        self.assertTrue(is_numeric_string("123"))
+        self.assertTrue(is_numeric_string("123.45"))
+        self.assertTrue(is_numeric_string("-123.45"))
+        self.assertTrue(is_numeric_string("1e3"))
+        self.assertTrue(is_numeric_string("0.0"))
+        self.assertTrue(is_numeric_string("0"))
+
+    def test_invalid_numeric_strings(self):
+        self.assertFalse(is_numeric_string("abc"))
+        self.assertFalse(is_numeric_string("123abc"))
+        self.assertFalse(is_numeric_string(""))
+        self.assertFalse(is_numeric_string(None))
+
+    def test_nan_string(self):
+        self.assertFalse(is_numeric_string("nan"))
+        self.assertFalse(is_numeric_string("NaN"))
+
+    def test_inf_string(self):
+        self.assertTrue(is_numeric_string("inf"))
+        self.assertTrue(is_numeric_string("-inf"))
+        self.assertTrue(is_numeric_string("Infinity"))
+        self.assertTrue(is_numeric_string("-Infinity"))
 
 
 class TestParseStringToNumeric(unittest.TestCase):
@@ -93,6 +120,49 @@ class TestPercentToFraction(unittest.TestCase):
         self.assertIsNone(percent_to_fraction(" "))
         self.assertIsNone(percent_to_fraction(None))
         self.assertIsNone(percent_to_fraction("%%"))
+
+
+class TestInfixToRPN(unittest.TestCase):
+
+    def test_simple_addition(self):
+        expression = "3 + 4"
+        expected_output = ["3", "4", "+"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_precedence(self):
+        expression = "3 + 4 * 2"
+        expected_output = ["3", "4", "2", "*", "+"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_parentheses(self):
+        expression = "( 3 + 4 ) * 2"
+        expected_output = ["3", "4", "+", "2", "*"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_complex_expression(self):
+        expression = "3 + 4 * ( 2 - 1 ) / 5 ^ 2"
+        expected_output = ["3", "4", "2", "1", "-", "*", "5", "2", "^", "/", "+"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_nested_parentheses(self):
+        expression = "3 + ( 4 * ( 2 - 1 ) )"
+        expected_output = ["3", "4", "2", "1", "-", "*", "+"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_unary_minus_simple(self):
+        expression = "-3"
+        expected_output = ["3", "u-"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_unary_minus_within_expression(self):
+        expression = "3 * -4"
+        expected_output = ["3", "4", "u-", "*"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_unary_minus_with_parentheses(self):
+        expression = "3 * ( -4 + 2 )"
+        expected_output = ["3", "4", "u-", "2", "+", "*"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
 
 
 class TestAddCombination(unittest.TestCase):

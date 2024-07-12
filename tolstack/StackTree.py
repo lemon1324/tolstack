@@ -1,5 +1,9 @@
-from tolstack.StackUtils import is_variable, infix_to_rpn, parse_string_to_numeric
-import sys
+from tolstack.StackUtils import (
+    is_variable,
+    infix_to_rpn,
+    is_numeric_string,
+    is_unary_operator,
+)
 
 
 class TreeNode:
@@ -28,17 +32,24 @@ class TreeParser:
                     stack.append(TreeNode(token))
                 elif token in self.expression_map:  # previously defined expressions
                     stack.append(self.expression_map[token])
-                elif parse_string_to_numeric(token):  # scalars
+                elif is_numeric_string(token):  # scalars
                     stack.append(TreeNode(token))
                 else:
-                    sys.exit(
+                    raise ValueError(
                         f"Error adding node for {token}, not defined in the value or expression map."
                     )
+
             else:  # token is an operator
-                node = TreeNode(token)
-                node.right = stack.pop()
-                node.left = stack.pop()
-                stack.append(node)
+                if is_unary_operator(token):
+                    node = TreeNode(token)
+                    node.right = stack.pop()
+                    # unary operators have no left
+                    stack.append(node)
+                else:
+                    node = TreeNode(token)
+                    node.right = stack.pop()
+                    node.left = stack.pop()
+                    stack.append(node)
 
         self.expression_map[key] = stack[0]
         return stack[0]

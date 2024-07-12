@@ -1,0 +1,17 @@
+*CONSTANTS, VALUE, NOTE
+PI,3.1415,The number π is a mathematical constant that is the ratio of a circle's circumference to its diameter, approximately equal to 3.14159. The number π appears in many formulae across mathematics and physics.
+g,9.81,Standard acceleration due to gravity
+*DIMENSIONS, NOMINAL, PLUS, MINUS, DISTRIBUTION, PART NUMBER, NOTE
+D1,0.3,.001,-5E-3,U,PRT-00010,This is the remainder of the long comment.
+D2,0.5,.01,-.2,3S,PRT-00011,Example of a normal distribution.
+D3,2.02,.05,-5%,U,,Example of a percentage tolerance.
+*EXPRESSIONS, VALUE, LOWER, UPPER, METHOD, NOTE
+E1,D1+D1,,.7,W,The description of this expression.
+E2,E1 - D2,.1,,W,Composite expression, worst-case.
+E3,E2,.1,,3S,Composite expression, statistical.
+E4,E2,.1,,1S,Composite expression, statistical.
+E5,(D1+D2),.5,1,W,Expression with parentheses and a percentage error.
+E6,(D1+D2) * D3,1.2,1.7,W,Expression with parentheses and a percentage error.
+E7,(D1+D2) * D3,1.2,1.7,2S,Expression with parentheses and a percentage error, 2-sigma.
+E8,(D2/D3) - (D3/(D1+D2)),,,3S,Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus vestibulum justo non mauris viverra, tempor fringilla augue convallis. Praesent sed vulputate orci. Nunc blandit quam a tortor aliquet vehicula. Duis.
+E9,0-D1,,,W,Test case for zero values.

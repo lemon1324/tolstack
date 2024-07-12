@@ -15,8 +15,6 @@ from tolstack.StackTypes import DistType, get_code_from_dist, EvalType
 
 from tolstack.StackUtils import mulCombination, divCombination
 
-import sys
-
 
 class StackDim:
     """
@@ -177,7 +175,9 @@ class StackDim:
             ):
                 return quantile(self.data, 0.5, method="median_unbiased")
             case _:
-                sys.exit(f"Error: cannot evaluate a center value with {method} method.")
+                raise ValueError(
+                    f"{self.key}: cannot evaluate a center value with {method} method."
+                )
 
     def lower(self, method=EvalType.WORSTCASE) -> float:
         """
@@ -203,7 +203,9 @@ class StackDim:
             case EvalType.STATISTICAL_3S:
                 return quantile(self.data, norm.sf(3), method="median_unbiased")
             case _:
-                sys.exit(f"Error: cannot evaluate a lower bound with {method} method.")
+                raise ValueError(
+                    f"{self.key}: cannot evaluate a lower bound with {method} method."
+                )
 
     def lower_tol(self, method=EvalType.WORSTCASE) -> float:
         """
@@ -244,7 +246,9 @@ class StackDim:
             case EvalType.STATISTICAL_3S:
                 return quantile(self.data, norm.cdf(3), method="median_unbiased")
             case _:
-                sys.exit(f"Error: cannot evaluate a lower bound with {method} method.")
+                raise ValueError(
+                    f"{self.key}: cannot evaluate a lower bound with {method} method."
+                )
 
     def upper_tol(self, method=EvalType.WORSTCASE) -> float:
         """

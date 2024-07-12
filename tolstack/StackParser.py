@@ -1,5 +1,3 @@
-import sys
-
 from collections import defaultdict
 
 from tolstack.StackDim import StackDim
@@ -55,28 +53,21 @@ class StackParser:
             case "expressions":
                 self._handle_expressions(line)
             case _:
-                print(
-                    f"No parsing definition found for '{self.category}'",
-                    file=sys.stderr,
-                )
+                raise ValueError(f"No parsing definition found for '{self.category}'")
 
     def _handle_constants_tokens(self, tokens):
         if len(tokens) < 2:
-            print(
-                f"Attempting to define constant {tokens[0]}, but not enough items in input record",
-                file=sys.stderr,
+            raise RuntimeError(
+                f"Attempting to define constant {tokens[0]}, but not enough items in input record"
             )
-            return
 
         _key = tokens[0].strip()
 
         _nom = parse_string_to_numeric(tokens[1])
         if _nom is None:
-            print(
-                f"Attempting to define constant {tokens[0]}, but cannot convert '{tokens[1]}' to a numeric value.",
-                file=sys.stderr,
+            raise ValueError(
+                f"Attempting to define constant {tokens[0]}, but cannot convert '{tokens[1]}' to a numeric value."
             )
-            return
 
         _note = None
         if len(tokens) == 3:
@@ -98,21 +89,17 @@ class StackParser:
 
     def _handle_dimensions_tokens(self, tokens):
         if len(tokens) < 4:
-            print(
-                f"Attempting to define dimension {tokens[0]}, but not enough items in input record",
-                file=sys.stderr,
+            raise RuntimeError(
+                f"Attempting to define dimension {tokens[0]}, but not enough items in input record"
             )
-            return
 
         _key = tokens[0].strip()
 
         _nom = parse_string_to_numeric(tokens[1])
         if _nom is None:
-            print(
-                f"Attempting to define dimension {tokens[0]}, but cannot convert '{tokens[1+i]}' to a numeric value.",
-                file=sys.stderr,
+            raise ValueError(
+                f"Attempting to define dimension {tokens[0]}, but cannot convert '{tokens[1+i]}' to a numeric value."
             )
-            return
 
         _vals = []
         for i in range(2):
@@ -123,19 +110,16 @@ class StackParser:
             else:
                 _vals.append(parse_string_to_numeric(string))
             if _vals[i] is None:
-                print(
-                    f"Attempting to define dimension {tokens[0]}, but cannot convert '{string}' to a numeric value.",
-                    file=sys.stderr,
+                raise ValueError(
+                    f"Attempting to define dimension {tokens[0]}, but cannot convert '{string}' to a numeric value."
                 )
-                return
         if len(tokens) < 5:
             _dist = DistType.UNIFORM
         else:
             _dist = get_dist_from_code(tokens[4])
             if _dist is None:
-                print(
-                    f"Attempting to define dimension {tokens[0]}, but cannot convert '{tokens[4]}' to a known distribution type.",
-                    file=sys.stderr,
+                raise ValueError(
+                    f"Attempting to define dimension {tokens[0]}, but cannot convert '{tokens[4]}' to a known distribution type."
                 )
                 return
 
@@ -164,11 +148,9 @@ class StackParser:
 
     def _handle_expressions_tokens(self, tokens):
         if len(tokens) < 4:
-            print(
-                f"Attempting to define expression {tokens[0]}, but not enough items in input record",
-                file=sys.stderr,
+            raise RuntimeError(
+                f"Attempting to define expression {tokens[0]}, but not enough items in input record"
             )
-            return
 
         _key = tokens[0]
 
