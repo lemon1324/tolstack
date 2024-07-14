@@ -144,6 +144,11 @@ class TestInfixToRPN(unittest.TestCase):
         expected_output = ["3", "4", "2", "1", "-", "*", "5", "2", "^", "/", "+"]
         self.assertEqual(infix_to_rpn(expression), expected_output)
 
+    def test_complex_expression_2(self):
+        expression = "(D2/D3) - (D3/(D1+D2))"
+        expected_output = ["D2", "D3", "/", "D3", "D1", "D2", "+", "/", "-"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
     def test_nested_parentheses(self):
         expression = "3 + ( 4 * ( 2 - 1 ) )"
         expected_output = ["3", "4", "2", "1", "-", "*", "+"]
@@ -255,3 +260,33 @@ class TestDivCombination(unittest.TestCase):
         plus, minus = divCombination(a, b)
         self.assertAlmostEqual(plus, 0.196969697)
         self.assertAlmostEqual(minus, 0.053333333)
+
+
+class TestExpCombination(unittest.TestCase):
+    def test_expCombinationPlusMinus(self) -> None:
+        a = (4, 0.2, -0.1)
+        b = (2, 0.8, -0.5)
+        plus, minus = expCombination(a, b)
+        self.assertAlmostEqual(plus, 39.60297298665972)
+        self.assertAlmostEqual(minus, -8.298117113328715)
+
+    def test_expCombinationPlusPlus(self) -> None:
+        a = (4, 0.2, 0.1)
+        b = (2, 0.8, 0.5)
+        plus, minus = expCombination(a, b)
+        self.assertAlmostEqual(plus, 39.60297298665972)
+        self.assertAlmostEqual(minus, 18.037655765343175)
+
+    def test_expCombinationMinusMinus(self) -> None:
+        a = (4, -0.1, -0.2)
+        b = (2, -0.5, -0.8)
+        plus, minus = expCombination(a, b)
+        self.assertAlmostEqual(plus, -8.298117113328715)
+        self.assertAlmostEqual(minus, -11.037045245114758)
+
+    def test_expCombinationLessThanOne(self) -> None:
+        a = (4, 0.3, -0.4)
+        b = (0.5, 0.1, -0.2)
+        plus, minus = expCombination(a, b)
+        self.assertAlmostEqual(plus, 0.399280770828355)
+        self.assertAlmostEqual(minus, -0.5314431944106439)

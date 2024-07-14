@@ -1,0 +1,7 @@
+*CONSTANTS, VALUE, NOTE
+*DIMENSIONS, NOMINAL, PLUS, MINUS, DISTRIBUTION, PART NUMBER, NOTE
+H,90,5%,-5%,U,-,Height of street sign pole.
+D,6,0.25,-0.25,U,-,Diameter of base flange
+T,0,0.1,-0.1,U,-,Equivalent tolerance for a perpendicularity of .1 to the pole.
+*EXPRESSIONS, VALUE, LOWER, UPPER, METHOD, NOTE
+T2,T*(H/D),,,W,Lateral motion of the top of the street sign pole.

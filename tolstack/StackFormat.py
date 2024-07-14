@@ -127,7 +127,7 @@ def format_bar(number, width=19) -> str:
 
 def format_center_bar(number, width=19) -> str:
     if not -1 <= number <= 1:
-        raise ValueError("The number must be in the range [0, 1]")
+        raise ValueError("The number must be in the range [-1, 1]")
 
     if width % 2 == 0:
         width += 1

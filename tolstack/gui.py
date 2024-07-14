@@ -1,31 +1,34 @@
 import sys
 from PyQt5.QtWidgets import (
+    QAction,
     QApplication,
-    QMainWindow,
-    QWidget,
-    QPushButton,
-    QTableWidget,
-    QTableWidgetItem,
-    QVBoxLayout,
-    QHBoxLayout,
     QCheckBox,
-    QTextEdit,
+    QDialog,
     QFileDialog,
-    QSizePolicy,
-    QSplitter,
     QHeaderView,
     QLabel,
-    QShortcut,
-    QAction,
+    QMainWindow,
     QMessageBox,
+    QPushButton,
+    QShortcut,
+    QSizePolicy,
+    QSplitter,
+    QTableWidget,
+    QTableWidgetItem,
+    QTextEdit,
+    QVBoxLayout,
+    QHBoxLayout,
+    QWidget,
 )
 from PyQt5.QtCore import Qt, QItemSelectionModel
 
-from PyQt5.QtGui import QFont, QKeySequence
+from PyQt5.QtGui import QFont, QKeySequence, QFontMetrics
 
 from tolstack.compute_stack import process_data
 
 import traceback
+
+import markdown
 
 
 class EditableTableWidget(QTableWidget):
@@ -69,7 +72,10 @@ class EditableConstantWidget(EditableTableWidget):
     def __init__(self, parent=None):
         super().__init__(0, 3, parent)
         self.setHorizontalHeaderLabels(["Name", "Value", "Note"])
-        self.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.horizontalHeader().setSectionResizeMode(
+            self.columnCount() - 1, QHeaderView.Stretch
+        )
 
         # Set default column sizes
         default_column_widths = [50, 55, 420]
@@ -83,7 +89,10 @@ class EditableDimensionWidget(EditableTableWidget):
         self.setHorizontalHeaderLabels(
             ["Name", "Nominal", "Plus", "Minus", "D", "PN", "Note"]
         )
-        self.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.horizontalHeader().setSectionResizeMode(
+            self.columnCount() - 1, QHeaderView.Stretch
+        )
 
         # Set default column sizes
         default_column_widths = [50, 55, 55, 55, 10, 65, 210]
@@ -95,12 +104,35 @@ class EditableExpressionWidget(EditableTableWidget):
     def __init__(self, parent=None):
         super().__init__(0, 6, parent)
         self.setHorizontalHeaderLabels(["Name", "Value", "Lower", "Upper", "M", "Note"])
-        self.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.horizontalHeader().setSectionResizeMode(
+            self.columnCount() - 1, QHeaderView.Stretch
+        )
 
         # Set default column sizes
         default_column_widths = [50, 55, 55, 55, 10, 275]
         for column, width in enumerate(default_column_widths):
             self.setColumnWidth(column, width)
+
+
+class EmWidthTextEdit(QTextEdit):
+    def __init__(self, font, em_width, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setFont(font)
+        self.setEmWidth(em_width)
+
+    def setEmWidth(self, em_width):
+        # Get the default font metrics
+        font_metrics = QFontMetrics(self.font())
+
+        # Width of one em in pixels
+        em_pixel_width = font_metrics.width("m")
+
+        # Calculate the total width in pixels
+        total_width = em_pixel_width * em_width
+
+        # Set the fixed width
+        self.setFixedWidth(total_width)
 
 
 class MainWindow(QMainWindow):
@@ -251,12 +283,12 @@ class MainWindow(QMainWindow):
         )  # Add the checkbox layout to the right layout
 
         # Text box
-        self.text_edit = QTextEdit()
         fixed_font = QFont("Consolas")
         fixed_font.setStyleHint(QFont.Monospace)
         fixed_font.setFixedPitch(True)
         fixed_font.setPointSize(10)
-        self.text_edit.setFont(fixed_font)
+        self.text_edit = EmWidthTextEdit(fixed_font, 85)
+        text_edit_width = self.text_edit.sizeHint().width()
         right_layout.addWidget(self.text_edit)
 
         right_widget = QWidget()
@@ -264,8 +296,9 @@ class MainWindow(QMainWindow):
 
         splitter.addWidget(left_widget)
         splitter.addWidget(right_widget)
-        left_size = int(0.475 * self.WINDOW_WIDTH)
-        right_size = self.WINDOW_WIDTH - left_size
+
+        left_size = self.WINDOW_WIDTH - text_edit_width
+        right_size = text_edit_width
         splitter.setSizes([left_size, right_size])
 
         main_layout.addWidget(splitter)
@@ -275,6 +308,7 @@ class MainWindow(QMainWindow):
         menubar = self.menuBar()
         file_menu = menubar.addMenu("File")
         edit_menu = menubar.addMenu("Edit")
+        help_menu = menubar.addMenu("Help")
 
         # Add actions to the File menu
         new_action = QAction("New", self)
@@ -294,7 +328,7 @@ class MainWindow(QMainWindow):
 
         save_inputs_as_action = QAction("Save As...", self)
         save_inputs_as_action.setStatusTip("Save input definitions as...")
-        save_inputs_as_action.triggered.connect(self.save_inputs)
+        save_inputs_as_action.triggered.connect(self.save_as_inputs)
 
         export_action = QAction("Export", self)
         export_action.setShortcut("Ctrl+E")
@@ -334,6 +368,18 @@ class MainWindow(QMainWindow):
         edit_menu.addSeparator()
         edit_menu.addAction(update_action)
 
+        # Add actions to the Help menu
+        help_action = QAction("Help", self)
+        help_action.setStatusTip("Show help")
+        help_action.triggered.connect(self.display_help)
+
+        about_action = QAction("About", self)
+        about_action.setStatusTip("About this application")
+        about_action.triggered.connect(self.display_about)
+
+        help_menu.addAction(help_action)
+        help_menu.addAction(about_action)
+
         # Create a Status Bar
         self.statusBar().showMessage("Ready")
 
@@ -346,6 +392,10 @@ class MainWindow(QMainWindow):
 
         expressions_shortcut = QShortcut(QKeySequence("Ctrl+Shift+3"), self)
         expressions_shortcut.activated.connect(self.switch_focus_to_expressions)
+
+        # Intercept window close to prompt for save
+        self.setAttribute(Qt.WA_DeleteOnClose, True)
+        self.closeEvent = self.on_close_event
 
     def update_table_display(self):
         sample_data = [
@@ -519,6 +569,7 @@ class MainWindow(QMainWindow):
                     file.write(",".join(row_data) + "\n")
 
                 self.store_state_at_save()
+                self.statusBar().showMessage(f"Saved to {file_name}", 3000)
 
     def store_state_at_save(self):
         self.CONTENTS_AT_SAVE = self.get_current_state()
@@ -601,6 +652,66 @@ class MainWindow(QMainWindow):
         # Show the message box
         msg_box.exec_()
 
+    def display_help(self):
+        try:
+            with open("tolstack/help.md", "r") as file:
+                md_content = file.read()
+
+            html_content = markdown.markdown(md_content)
+
+            # Create a custom dialog
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Help")
+
+            dialog.resize(800, 600)
+
+            layout = QVBoxLayout(dialog)
+
+            # Add QTextEdit to handle HTML content
+            text_edit = QTextEdit()
+            text_edit.setReadOnly(True)
+            text_edit.setHtml(html_content)
+            layout.addWidget(text_edit)
+
+            # Add a button to close the dialog
+            close_button = QPushButton("Close")
+            close_button.clicked.connect(dialog.accept)
+            layout.addWidget(close_button)
+
+            dialog.setLayout(layout)
+            dialog.exec_()
+        except Exception as e:
+            error_msg_box = QMessageBox(self)
+            error_msg_box.setIcon(QMessageBox.Critical)
+            error_msg_box.setWindowTitle("Error")
+            error_msg_box.setText(f"Error loading help content:\n{e}")
+            error_msg_box.exec_()
+
+    def display_about(self):
+        msg_box = QMessageBox()
+        msg_box.setIcon(QMessageBox.Information)
+        msg_box.setWindowTitle("About tolstack")
+
+        text = (
+            "<h3>tolstack</h3>"
+            "<p>Version: 0.4.0<br>"
+            "Author: S.A. Suresh (lemon1324)<br>"
+            "License: MIT</p>"
+            "<p>This application is licensed under the MIT License.</p>"
+            "<p>For more information, visit the <a href='https://github.com/lemon1324/tolstack'>GitHub repository</a>.</p>"
+            "<p><b>Submitting Bug Reports:</b></p>"
+            "<ul>"
+            "<li>Check if the issue has already been reported.</li>"
+            "<li>Provide a clear description of the problem.</li>"
+            "<li>Include steps to reproduce the issue.</li>"
+            "<li>Attach relevant input files, logs, or screenshots if applicable.</li>"
+            "</ul>"
+        )
+
+        msg_box.setText(text)
+        msg_box.setStandardButtons(QMessageBox.Ok)
+        msg_box.exec_()
+
     def switch_focus_to_constants(self):
         self.constants_widget.setFocus()
         self.constants_widget.setCurrentCell(0, 0, QItemSelectionModel.ClearAndSelect)
@@ -612,6 +723,26 @@ class MainWindow(QMainWindow):
     def switch_focus_to_expressions(self):
         self.expressions_widget.setFocus()
         self.expressions_widget.setCurrentCell(0, 0, QItemSelectionModel.ClearAndSelect)
+
+    def on_close_event(self, event):
+        if self.has_unsaved_changes():
+            reply = QMessageBox.question(
+                self,
+                "Unsaved Changes",
+                "You have unsaved changes. Are you sure you want to exit without saving?",
+                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
+                QMessageBox.Save,
+            )
+
+            if reply == QMessageBox.Save:
+                self.save_inputs()
+                event.accept()
+            elif reply == QMessageBox.Discard:
+                event.accept()
+            else:
+                event.ignore()
+        else:
+            event.accept()
 
 
 def run_app():

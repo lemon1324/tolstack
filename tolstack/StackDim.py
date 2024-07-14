@@ -6,6 +6,7 @@ from numpy.random import default_rng
 from numpy import ndarray
 from numpy import full
 from numpy import quantile
+from numpy import power as np_power
 
 from math import isclose
 
@@ -13,7 +14,7 @@ from scipy.stats import norm
 
 from tolstack.StackTypes import DistType, get_code_from_dist, EvalType
 
-from tolstack.StackUtils import mulCombination, divCombination
+from tolstack.StackUtils import mulCombination, divCombination, expCombination
 
 
 class StackDim:
@@ -86,7 +87,7 @@ class StackDim:
     """
 
     rng = default_rng()
-    N = 100000
+    N = 250000
 
     def __init__(
         self,
@@ -104,7 +105,9 @@ class StackDim:
         self.minus = minus
 
         if self.plus - self.minus < 0:
-            print("add error, but the +tol is less than the -tol")
+            raise ValueError(
+                f"Cannot define dimension {key} since plus value is less than minus value."
+            )
 
         self.disttype = disttype
         if disttype is DistType.DERIVED:
@@ -167,17 +170,18 @@ class StackDim:
         """
         match method:
             case EvalType.WORSTCASE:
-                return self.nom
+                center = self.nom
             case (
                 EvalType.STATISTICAL_1S
                 | EvalType.STATISTICAL_2S
                 | EvalType.STATISTICAL_3S
             ):
-                return quantile(self.data, 0.5, method="median_unbiased")
+                center = quantile(self.data, 0.5, method="median_unbiased")
             case _:
                 raise ValueError(
                     f"{self.key}: cannot evaluate a center value with {method} method."
                 )
+        return center
 
     def lower(self, method=EvalType.WORSTCASE) -> float:
         """
@@ -195,17 +199,18 @@ class StackDim:
         """
         match method:
             case EvalType.WORSTCASE:
-                return self.nom + self.minus
+                lower = self.nom + self.minus
             case EvalType.STATISTICAL_1S:
-                return quantile(self.data, norm.sf(1), method="median_unbiased")
+                lower = quantile(self.data, norm.sf(1), method="median_unbiased")
             case EvalType.STATISTICAL_2S:
-                return quantile(self.data, norm.sf(2), method="median_unbiased")
+                lower = quantile(self.data, norm.sf(2), method="median_unbiased")
             case EvalType.STATISTICAL_3S:
-                return quantile(self.data, norm.sf(3), method="median_unbiased")
+                lower = quantile(self.data, norm.sf(3), method="median_unbiased")
             case _:
                 raise ValueError(
                     f"{self.key}: cannot evaluate a lower bound with {method} method."
                 )
+        return lower
 
     def lower_tol(self, method=EvalType.WORSTCASE) -> float:
         """
@@ -220,7 +225,8 @@ class StackDim:
         Returns:
         float: The lower tolerance value based on the provided evaluation method.
         """
-        return self.lower(method) - self.center(method)
+        lower_tol = self.lower(method) - self.center(method)
+        return lower_tol
 
     def upper(self, method=EvalType.WORSTCASE) -> float:
         """
@@ -238,17 +244,18 @@ class StackDim:
         """
         match method:
             case EvalType.WORSTCASE:
-                return self.nom + self.plus
+                upper = self.nom + self.plus
             case EvalType.STATISTICAL_1S:
-                return quantile(self.data, norm.cdf(1), method="median_unbiased")
+                upper = quantile(self.data, norm.cdf(1), method="median_unbiased")
             case EvalType.STATISTICAL_2S:
-                return quantile(self.data, norm.cdf(2), method="median_unbiased")
+                upper = quantile(self.data, norm.cdf(2), method="median_unbiased")
             case EvalType.STATISTICAL_3S:
-                return quantile(self.data, norm.cdf(3), method="median_unbiased")
+                upper = quantile(self.data, norm.cdf(3), method="median_unbiased")
             case _:
                 raise ValueError(
                     f"{self.key}: cannot evaluate a lower bound with {method} method."
                 )
+        return upper
 
     def upper_tol(self, method=EvalType.WORSTCASE) -> float:
         """
@@ -263,7 +270,8 @@ class StackDim:
         Returns:
         float: The upper tolerance value based on the provided evaluation method.
         """
-        return self.upper(method) - self.center(method)
+        upper_tol = self.upper(method) - self.center(method)
+        return upper_tol
 
     def range(self, method=EvalType.WORSTCASE) -> float:
         """
@@ -277,7 +285,8 @@ class StackDim:
         Returns:
         float: The range of tolerance values based on the provided evaluation method.
         """
-        return self.upper(method) - self.lower(method)
+        range = self.upper(method) - self.lower(method)
+        return range
 
     def ideal(self, method=EvalType.WORSTCASE) -> StackDim:
         """
@@ -352,6 +361,21 @@ class StackDim:
         return StackDim(_nom, _plus, _minus, _type, _sample, note="Derived.", key=_key)
 
     @staticmethod
+    def _expStackDims(base: StackDim, power: StackDim) -> StackDim:
+        # implements base^power
+        _key = f"{base.key}^{power.key}"
+        _nom = base.nom**power.nom
+        # explicitly test all cases, since depending on magnitude and sign
+        # it is not clear which is the most plus and the most minus
+        _plus, _minus = expCombination(
+            (base.nom, base.plus, base.minus),
+            (power.nom, power.plus, power.minus),
+        )
+        _sample = base.dist() ** power.dist()
+        _type = DistType.DERIVED
+        return StackDim(_nom, _plus, _minus, _type, _sample, note="Derived.", key=_key)
+
+    @staticmethod
     def _addNumeric(dim: StackDim, number: float) -> StackDim:
         # Implements dim + number
         _key = dim.key + "+" + str(number)
@@ -404,6 +428,15 @@ class StackDim:
         return True
 
     def __neg__(self) -> StackDim:
+        """
+        Implements the unary negation operator for StackDim.
+
+        Negates the nominal, plus, and minus values, and adjusts the distribution sample,
+        note, and key accordingly.
+
+        :param self: This StackDim instance.
+        :returns: A new StackDim instance with negated values.
+        """
         _nom = -self.nom
         _plus = -self.minus
         _minus = -self.plus
@@ -507,7 +540,7 @@ class StackDim:
             return StackDim._mulNumeric(self, other)
         else:
             raise TypeError(
-                f"unsupported operand type(s) for +: '{self.__class__}' and '{type(other)}'"
+                f"unsupported operand type(s) for *: '{self.__class__}' and '{type(other)}'"
             )
 
     def __rmul__(self, other) -> StackDim:
@@ -551,7 +584,7 @@ class StackDim:
             return StackDim._mulNumeric(self, 1 / other)
         else:
             raise TypeError(
-                f"unsupported operand type(s) for +: '{self.__class__}' and '{type(other)}'"
+                f"unsupported operand type(s) for /: '{self.__class__}' and '{type(other)}'"
             )
 
     def __rtruediv__(self, other) -> StackDim:
@@ -578,5 +611,53 @@ class StackDim:
             return StackDim._divStackDims(StackDim(other), self)
         else:
             raise TypeError(
-                f"unsupported operand type(s) for +: '{self.__class__}' and '{type(other)}'"
+                f"unsupported operand type(s) for /: '{self.__class__}' and '{type(other)}'"
+            )
+
+    def __pow__(self, other) -> StackDim:
+        """
+        Implements (self ** other).
+
+        Raises this instance's nominal, plus, and minus values to the given exponent.
+        Updates the distribution sample accordingly.
+
+        Parameters:
+        other: any
+            The exponent to which to raise this instance.
+
+        Returns:
+        StackDim
+            A new StackDim instance with values raised to the given exponent.
+        """
+        if isinstance(other, self.__class__):
+            return StackDim._expStackDims(self, other)
+        elif isinstance(other, (int, float)):
+            return StackDim._expStackDims(self, StackDim(other))
+        else:
+            raise TypeError(
+                f"unsupported operand type(s) for **: '{self.__class__}' and '{type(other)}'"
+            )
+
+    def __rpow__(self, other) -> StackDim:
+        """
+        Implements (other ** self).
+
+        In this case other is definitely not a StackDim, so we make a dummy version of it
+        and call StackDim(other)**self to use the existing __pow__ definition.
+
+        Parameters:
+        other: any
+            The base to raise to this instance.
+
+        Returns:
+        StackDim
+            A new StackDim instance with the result of the exponentiation.
+        """
+        if isinstance(other, self.__class__):
+            return StackDim._expStackDims(other, self)
+        elif isinstance(other, (int, float)):
+            return StackDim._expStackDims(StackDim(other), self)
+        else:
+            raise TypeError(
+                f"unsupported operand type(s) for **: '{type(other)}' and '{self.__class__}'"
             )

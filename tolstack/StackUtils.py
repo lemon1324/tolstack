@@ -5,7 +5,7 @@ import numpy as np
 PRECEDENCE = {"+": 1, "-": 1, "*": 2, "/": 2, "^": 3, "u-": 4}
 OPERATORS = "+-*/^"
 UNARY_OPERATORS = ["u-"]
-SYMBOLS = "()" + OPERATORS
+SYMBOLS = "(" + OPERATORS
 
 # Define a regex pattern for operators, parentheses, and operands
 TOKEN_RE = r"(\b\w+\b|[()+\-*/^])"
@@ -22,9 +22,10 @@ def tokenize(expression):
     return tokens
 
 
-# Helper function to determine if a token is an operator
+# Helper function to determine if a token is an operator in an infix context
 def is_operator(token):
     return token in OPERATORS
+
 
 # determines if an operator is a unary operator in an RPN context
 def is_unary_operator(token):
@@ -38,6 +39,11 @@ def is_variable(token):
 # Helper function to get precedence of an operator
 def get_precedence(op):
     return PRECEDENCE[op]
+
+
+# Helper function to determine if a token is an operator in an expression tree node
+def is_tree_operator(token):
+    return token in PRECEDENCE
 
 
 def word_wrap(text, width, hanging_indent=0):
@@ -268,4 +274,25 @@ def divCombination(
     quotients = np.array([(a[0] + da) / (b[0] + db) for da in a_vals for db in b_vals])
 
     deviations = quotients - nom
+    return max(deviations), min(deviations)
+
+
+def expCombination(
+    a: tuple[float, float, float], b: tuple[float, float, float]
+) -> tuple[float, float]:
+    """
+    Utility function to explicitly compute min/max combinations of tolerances.
+
+        :param a: a 3-tuple of the nominal value, plus, and minus tolerances for a StackDim.
+        :param b: a 3-tuple of the nominal value, plus, and minus tolerances for a second StackDim.
+        :returns: A 2-tuple containing the plus and minus tolerances of the result of worst-case taking a^b.
+    """
+    nom = a[0] ** b[0]
+    a_vals = np.array([a[1], a[2]])
+    b_vals = np.array([b[1], b[2]])
+
+    # Create all 4 combinations of quotients
+    powers = np.array([(a[0] + da) ** (b[0] + db) for da in a_vals for db in b_vals])
+
+    deviations = powers - nom
     return max(deviations), min(deviations)

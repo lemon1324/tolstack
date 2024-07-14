@@ -6,9 +6,16 @@ from tolstack.StackDim import StackDim
 
 from tolstack.StackTypes import get_eval_from_code
 
-from tolstack.StackUtils import parse_string_to_numeric, is_numeric_string
+from tolstack.StackUtils import (
+    parse_string_to_numeric,
+    is_numeric_string,
+    get_precedence,
+    is_tree_operator,
+)
 
 from typing import Dict
+
+from numpy import log as np_log
 
 
 class StackExpr:
@@ -72,7 +79,13 @@ class StackExpr:
             if var_dim.range() == 0:
                 contributions[var] = 0
             else:
-                contributions[var] = (base.range() - mod.range()) / 2
+                # set contributions to zero if the statistical model happens to suggest
+                # the tighter tolerance actually hurt overall tolerance, which should not be possible.
+                # If this happens, it is a result of limitations in the Monte Carlo simulation for a
+                # statistical analysis.
+                contributions[var] = max(
+                    (base.range(self.method) - mod.range(self.method)) / 2, 0
+                )
 
         return contributions
 
@@ -102,6 +115,8 @@ class StackExpr:
                 return _left * _right
             case "/":
                 return _left / _right
+            case "^":
+                return _left**_right
             case "u-":
                 return -_right
             case _:
@@ -144,6 +159,12 @@ class StackExpr:
                     _left / _right,
                     (_right * _dleft - _left * _dright) / (_right**2),
                 )
+            case "^":
+                return (
+                    _left**_right,
+                    _left**_right
+                    * (_dleft * (_right / _left) + _dright * np_log(_left)),
+                )
             case "u-":
                 return (-_right, -_dright)
             case _:
@@ -163,7 +184,7 @@ class StackExpr:
             if key != value.key:
                 return value
             else:
-                return value.ideal()
+                return value.ideal(self.method)
 
         _left = self._evaluate_ideal(node.left, key) if node.left else None
         _right = self._evaluate_ideal(node.right, key) if node.right else None
@@ -177,6 +198,8 @@ class StackExpr:
                 return _left * _right
             case "/":
                 return _left / _right
+            case "^":
+                return _left**_right
             case "u-":
                 return -_right
             case _:
@@ -185,22 +208,37 @@ class StackExpr:
                 )
 
     def _format_tree(self, node):
-        if node.left is None and node.right is None:
+        if (
+            node.left is None and node.right is None
+        ):  # This is a leaf node, just return the key
             return node.key
 
+        # Format left and right children
         _left = self._format_tree(node.left) if node.left else None
         _right = self._format_tree(node.right) if node.right else None
 
         if _left:
-            return "(" + _left + " " + node.key + " " + _right + ")"
+            _left_grouped = self._group_child(_left, node.left.key, node.key)
+            _right_grouped = self._group_child(_right, node.right.key, node.key)
+
+            return f"{_left_grouped} {node.key} {_right_grouped}"
         else:
-            match node.key:
-                case "u-":
-                    return "-" + _right
-                case _:
-                    raise ValueError(
-                        f"Error computing '{node.key}' when formatting tree, operation not defined."
-                    )
+            return self._handle_unary_operator(node.key, _right)
+
+    def _group_child(self, child_str, child_key, parent_key):
+        if is_tree_operator(child_key):
+            if get_precedence(child_key) < get_precedence(parent_key):
+                return f"({child_str})"
+        return child_str
+
+    def _handle_unary_operator(self, operator, operand):
+        match operator:
+            case "u-":
+                return f"-{operand}"
+            case _:
+                raise ValueError(
+                    f"Error computing '{operator}' when formatting tree, unary operation {operator} not defined."
+                )
 
     def _referenced_values(self, node):
         if node.left is None and node.right is None:
