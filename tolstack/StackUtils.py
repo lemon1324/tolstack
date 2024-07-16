@@ -2,9 +2,21 @@ import re
 import numpy as np
 
 # Precedence levels of operators
-PRECEDENCE = {"+": 1, "-": 1, "*": 2, "/": 2, "^": 3, "u-": 4}
+PRECEDENCE = {
+    "+": 1,
+    "-": 1,
+    "*": 2,
+    "/": 2,
+    "^": 3,
+    "u-": 10,
+    "sin": 10,
+    "cos": 10,
+    "tan": 10,
+}
 OPERATORS = "+-*/^"
-UNARY_OPERATORS = ["u-"]
+TRIG_OPERATORS = ["sin", "cos", "tan"]
+INFIX_UNARY_OPERATORS = ["-"]
+RPN_UNARY_OPERATORS = ["u-"]
 SYMBOLS = "(" + OPERATORS
 
 # Define a regex pattern for operators, parentheses, and operands
@@ -24,16 +36,22 @@ def tokenize(expression):
 
 # Helper function to determine if a token is an operator in an infix context
 def is_operator(token):
-    return token in OPERATORS
+    return token in OPERATORS or token in TRIG_OPERATORS
+
+
+# If the given token can be a unary operator in an infix context
+def can_be_unary_operator(token):
+    return token in INFIX_UNARY_OPERATORS or token in TRIG_OPERATORS
 
 
 # determines if an operator is a unary operator in an RPN context
 def is_unary_operator(token):
-    return token in UNARY_OPERATORS
+    return token in RPN_UNARY_OPERATORS or token in TRIG_OPERATORS
 
 
+# determines if a token is a variable in an infix context
 def is_variable(token):
-    return re.fullmatch(VARIABLE_RE, token)
+    return re.fullmatch(VARIABLE_RE, token) and token not in TRIG_OPERATORS
 
 
 # Helper function to get precedence of an operator
@@ -169,21 +187,38 @@ def infix_to_rpn(expression):
         if is_variable(token):  # Operand (number or variable)
             output.append(token)
         elif is_operator(token):  # Operator
-            if token == "-" and (previous_token is None or previous_token in SYMBOLS):
-                # Handle unary minus
-                while (
-                    operator_stack
-                    and operator_stack[-1] != "("
-                    and get_precedence(operator_stack[-1]) >= get_precedence("u-")
-                ):
-                    output.append(operator_stack.pop())
-                operator_stack.append("u-")
+            if can_be_unary_operator(token) and (
+                previous_token is None
+                or previous_token in SYMBOLS
+                or previous_token in TRIG_OPERATORS
+            ):
+                # Handle unary operators
+                if token == "-":
+                    while (
+                        operator_stack
+                        and operator_stack[-1] != "("
+                        and get_precedence(operator_stack[-1]) > get_precedence("u-")
+                    ):
+                        output.append(operator_stack.pop())
+                    operator_stack.append("u-")
+                elif token in TRIG_OPERATORS:
+                    while (
+                        operator_stack
+                        and operator_stack[-1] != "("
+                        and get_precedence(operator_stack[-1]) > get_precedence(token)
+                    ):
+                        output.append(operator_stack.pop())
+                    operator_stack.append(token)
+                else:
+                    raise ValueError(
+                        f"Cannot process {expression}, unexpected unary operator {token}."
+                    )
             else:
                 # Handle binary operator
                 while (
                     operator_stack
                     and operator_stack[-1] != "("
-                    and get_precedence(operator_stack[-1]) >= get_precedence(token)
+                    and get_precedence(operator_stack[-1]) > get_precedence(token)
                 ):
                     output.append(operator_stack.pop())
                 operator_stack.append(token)

@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import (
     QHeaderView,
     QLabel,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QPushButton,
     QShortcut,
@@ -15,12 +16,14 @@ from PyQt5.QtWidgets import (
     QSplitter,
     QTableWidget,
     QTableWidgetItem,
+    QLineEdit,
     QTextEdit,
     QVBoxLayout,
     QHBoxLayout,
     QWidget,
+    QAbstractItemView,
 )
-from PyQt5.QtCore import Qt, QItemSelectionModel
+from PyQt5.QtCore import Qt, QItemSelectionModel, QPoint
 
 from PyQt5.QtGui import QFont, QKeySequence, QFontMetrics
 
@@ -30,15 +33,161 @@ import traceback
 
 import markdown
 
+import re
+
+from enum import Enum
+
+
+class InsertPosition(Enum):
+    ADD = 1
+    ABOVE = 2
+    BELOW = 3
+
 
 class EditableTableWidget(QTableWidget):
     def __init__(self, rows, columns, parent=None):
         super().__init__(rows, columns, parent)
 
-    def add_row(self, data):
-        row_position = self.rowCount()
-        self.insertRow(row_position)
+        self.DEFAULT_DATA = [""] * columns
+        self.ITEM_NAME = "item"
+        self.WORD_WRAP = False
 
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.show_context_menu)
+
+    def show_context_menu(self, pos: QPoint):
+        index = self.indexAt(pos)
+        if not index.isValid():
+            return
+
+        row = index.row()
+
+        # Create the context menu
+        context_menu = QMenu(self)
+
+        # Create actions for inserting rows
+        insert_above_action = QAction(f"Insert {self.ITEM_NAME} above", self)
+        insert_below_action = QAction(f"Insert {self.ITEM_NAME} below", self)
+
+        # Connect the actions to slots
+        insert_above_action.triggered.connect(
+            lambda: self.insert_row(
+                position=InsertPosition.ABOVE, target_row=row, select_after=True
+            )
+        )
+        insert_below_action.triggered.connect(
+            lambda: self.insert_row(
+                position=InsertPosition.BELOW, target_row=row, select_after=True
+            )
+        )
+
+        # Add actions to the context menu
+        context_menu.addAction(insert_above_action)
+        context_menu.addAction(insert_below_action)
+
+        # Add separator
+        context_menu.addSeparator()
+
+        # Create actions for moving rows up and down
+        move_to_top_action = QAction("Move to top", self)
+        move_up_action = QAction("Move up", self)
+        move_down_action = QAction("Move down", self)
+        move_to_bottom_action = QAction("Move to bottom", self)
+
+        # Connect the actions to slots
+        move_to_top_action.triggered.connect(lambda: self.move_row(row, 0))
+        move_up_action.triggered.connect(lambda: self.move_row(row, row - 1))
+        move_down_action.triggered.connect(lambda: self.move_row(row, row + 1))
+        move_to_bottom_action.triggered.connect(
+            lambda: self.move_row(row, self.rowCount() - 1)
+        )
+
+        # Add actions to the context menu
+        context_menu.addAction(move_to_top_action)
+        context_menu.addAction(move_up_action)
+        context_menu.addAction(move_down_action)
+        context_menu.addAction(move_to_bottom_action)
+
+        # Show the context menu at the cursor position
+        context_menu.exec_(self.viewport().mapToGlobal(pos))
+
+    def insert_row(
+        self,
+        position: InsertPosition = InsertPosition.ADD,
+        data=None,
+        target_row=-1,
+        select_after=False,
+    ):
+        if data is None:
+            data = self.DEFAULT_DATA
+
+        # If the table is empty, always insert at position 0
+        if self.rowCount() == 0:
+            row_position = 0
+            self.insertRow(row_position)
+        else:
+            if target_row == -1:
+                target_row = self.currentRow()
+
+            row_position = None  # Initialize row_position to None
+
+            match position:
+                case InsertPosition.ADD:
+                    row_position = self.rowCount()
+                    self.insertRow(row_position)
+                case InsertPosition.ABOVE:
+                    if target_row != -1:
+                        self.insertRow(target_row)
+                        row_position = target_row
+                    else:
+                        return  # No row selected
+                case InsertPosition.BELOW:
+                    if target_row != -1:
+                        self.insertRow(target_row + 1)
+                        row_position = target_row + 1
+                    else:
+                        return  # No row selected
+                case _:
+                    raise ValueError(f"Invalid position: {position}")
+
+        self._set_row_data(row_position, data)
+        if select_after:
+            if self.rowCount() > 0:
+                self.setCurrentCell(row_position, 0)
+                self.editItem(self.item(row_position, 0))
+
+        return row_position
+
+    def move_row(self, source_row: int, target_row: int):
+        if (
+            source_row == target_row
+            or source_row < 0
+            or target_row < 0
+            or source_row >= self.rowCount()
+            or target_row >= self.rowCount()
+        ):
+            return  # Invalid parameters or no movement needed
+
+        # Get data from the source row
+        source_data = [
+            self.item(source_row, col).text() if self.item(source_row, col) else ""
+            for col in range(self.columnCount())
+        ]
+
+        self.insert_row(
+            position=(
+                InsertPosition.BELOW
+                if target_row > source_row
+                else InsertPosition.ABOVE
+            ),
+            data=source_data,
+            target_row=target_row,
+        )
+
+        # Remove the original row (adjust the index if necessary)
+        self.removeRow(source_row if target_row > source_row else source_row + 1)
+
+    def _set_row_data(self, row_position, data):
         for column, item in enumerate(data):
             if column < self.columnCount():  # Ensure we don't exceed the column count
                 table_item = QTableWidgetItem(str(item))
@@ -46,6 +195,37 @@ class EditableTableWidget(QTableWidget):
                 self.item(row_position, column).setFlags(
                     Qt.ItemIsSelectable | Qt.ItemIsEditable | Qt.ItemIsEnabled
                 )
+
+                # Enable word wrapping for the last column if set
+                if column == self.columnCount() - 1 and self.WORD_WRAP:
+                    table_item.setTextAlignment(Qt.AlignLeft | Qt.AlignTop)
+                    self._adjustRowHeight(row_position)
+
+    def _adjustRowHeight(self, row_position):
+        max_height = 0
+        for column in range(self.columnCount()):
+            table_item = self.item(row_position, column)
+            if table_item is not None:
+                text = table_item.text()
+                font_metrics = QFontMetrics(table_item.font())
+                rect = font_metrics.boundingRect(
+                    0, 0, self.columnWidth(column), 0, Qt.TextWordWrap, text
+                )
+                max_height = max(max_height, rect.height())
+
+        self.setRowHeight(row_position, max_height)
+
+    def has_key(self, key: str) -> bool:
+        """
+        Check if any cell in the first column contains the exact string 'key'.
+        :param key: The string to search for.
+        :return: True if found, False otherwise.
+        """
+        for row in range(self.rowCount()):
+            item = self.item(row, 0)
+            if item and item.text() == key:
+                return True
+        return False
 
     def get_all_data(self):
         data_list = []
@@ -64,6 +244,12 @@ class EditableTableWidget(QTableWidget):
         if event.key() == Qt.Key_Delete:
             for item in self.selectedItems():
                 item.setText("")
+        elif event.key() == Qt.Key_Enter or event.key() == Qt.Key_Return:
+            selected_items = self.selectedItems()
+            if selected_items:
+                first_selected_item = selected_items[0]
+                if self.state() != QAbstractItemView.EditingState:
+                    self.editItem(first_selected_item)
         else:
             super().keyPressEvent(event)
 
@@ -71,6 +257,10 @@ class EditableTableWidget(QTableWidget):
 class EditableConstantWidget(EditableTableWidget):
     def __init__(self, parent=None):
         super().__init__(0, 3, parent)
+
+        self.DEFAULT_DATA = ["Cxx", 0.0, "-"]
+        self.ITEM_NAME = "constant"
+
         self.setHorizontalHeaderLabels(["Name", "Value", "Note"])
         self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.horizontalHeader().setSectionResizeMode(
@@ -86,6 +276,10 @@ class EditableConstantWidget(EditableTableWidget):
 class EditableDimensionWidget(EditableTableWidget):
     def __init__(self, parent=None):
         super().__init__(0, 7, parent)
+
+        self.DEFAULT_DATA = ["Dxx", 0.0, 0.0, 0.0, "U", "-", "-"]
+        self.ITEM_NAME = "dimension"
+
         self.setHorizontalHeaderLabels(
             ["Name", "Nominal", "Plus", "Minus", "D", "PN", "Note"]
         )
@@ -103,6 +297,10 @@ class EditableDimensionWidget(EditableTableWidget):
 class EditableExpressionWidget(EditableTableWidget):
     def __init__(self, parent=None):
         super().__init__(0, 6, parent)
+
+        self.DEFAULT_DATA = ["Exx", "-", "", "", "W", "-"]
+        self.ITEM_NAME = "expression"
+
         self.setHorizontalHeaderLabels(["Name", "Value", "Lower", "Upper", "M", "Note"])
         self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.horizontalHeader().setSectionResizeMode(
@@ -167,8 +365,12 @@ class MainWindow(QMainWindow):
 
         self.add_constant_button = QPushButton("+")
         self.delete_constant_button = QPushButton("-")
-        self.add_constant_button.clicked.connect(self.add_constant)
-        self.delete_constant_button.clicked.connect(self.delete_constant)
+        self.add_constant_button.clicked.connect(
+            lambda: self.add_item(self.constants_widget, InsertPosition.BELOW)
+        )
+        self.delete_constant_button.clicked.connect(
+            lambda: self.delete_item(self.constants_widget)
+        )
 
         # Horizontal layout for constants title and buttons
         constant_header_layout = QHBoxLayout()
@@ -192,8 +394,12 @@ class MainWindow(QMainWindow):
 
         self.add_dimension_button = QPushButton("+")
         self.delete_dimension_button = QPushButton("-")
-        self.add_dimension_button.clicked.connect(self.add_dimension)
-        self.delete_dimension_button.clicked.connect(self.delete_dimension)
+        self.add_dimension_button.clicked.connect(
+            lambda: self.add_item(self.dimensions_widget, InsertPosition.BELOW)
+        )
+        self.delete_dimension_button.clicked.connect(
+            lambda: self.delete_item(self.dimensions_widget)
+        )
 
         # Horizontal layout for dimensions title and buttons
         dimension_header_layout = QHBoxLayout()
@@ -217,8 +423,12 @@ class MainWindow(QMainWindow):
 
         self.add_expression_button = QPushButton("+")
         self.delete_expression_button = QPushButton("-")
-        self.add_expression_button.clicked.connect(self.add_expression)
-        self.delete_expression_button.clicked.connect(self.delete_expression)
+        self.add_expression_button.clicked.connect(
+            lambda: self.add_item(self.expressions_widget, InsertPosition.BELOW)
+        )
+        self.delete_expression_button.clicked.connect(
+            lambda: self.delete_item(self.expressions_widget)
+        )
 
         # Horizontal layout for expressions title and buttons
         expression_header_layout = QHBoxLayout()
@@ -342,31 +552,44 @@ class MainWindow(QMainWindow):
         file_menu.addAction(export_action)
 
         # Add actions to the Edit menu
-        add_constant_action = QAction("Add constant", self)
-        add_constant_action.setShortcut("Ctrl+1")
-        add_constant_action.setStatusTip("Add new constant (Ctrl+1)")
-        add_constant_action.triggered.connect(self.add_constant)
-
-        add_dimension_action = QAction("Add dimension", self)
-        add_dimension_action.setShortcut("Ctrl+2")
-        add_dimension_action.setStatusTip("Add new dimension (Ctrl+2)")
-        add_dimension_action.triggered.connect(self.add_dimension)
-
-        add_expression_action = QAction("Add expression", self)
-        add_expression_action.setShortcut("Ctrl+3")
-        add_expression_action.setStatusTip("Add new constant (Ctrl+3)")
-        add_expression_action.triggered.connect(self.add_expression)
-
         update_action = QAction("Update", self)
         update_action.setShortcut("Ctrl+R")
         update_action.setStatusTip("Update results (Ctrl+R)")
         update_action.triggered.connect(self.update_results)
 
+        add_constant_action = QAction("Add constant", self)
+        add_constant_action.setShortcut("Ctrl+1")
+        add_constant_action.setStatusTip("Add new constant (Ctrl+1)")
+        add_constant_action.triggered.connect(
+            lambda: self.add_item(self.constants_widget)
+        )
+
+        add_dimension_action = QAction("Add dimension", self)
+        add_dimension_action.setShortcut("Ctrl+2")
+        add_dimension_action.setStatusTip("Add new dimension (Ctrl+2)")
+        add_dimension_action.triggered.connect(
+            lambda: self.add_item(self.dimensions_widget)
+        )
+
+        add_expression_action = QAction("Add expression", self)
+        add_expression_action.setShortcut("Ctrl+3")
+        add_expression_action.setStatusTip("Add new expression (Ctrl+3)")
+        add_expression_action.triggered.connect(
+            lambda: self.add_item(self.expressions_widget)
+        )
+
+        rename_action = QAction("Rename item", self)
+        # rename_action.setShortcut("Ctrl+R")
+        rename_action.setStatusTip("Rename a constant or dimension.")
+        rename_action.triggered.connect(self.rename_item)
+
+        edit_menu.addAction(update_action)
+        edit_menu.addSeparator()
         edit_menu.addAction(add_constant_action)
         edit_menu.addAction(add_dimension_action)
         edit_menu.addAction(add_expression_action)
         edit_menu.addSeparator()
-        edit_menu.addAction(update_action)
+        edit_menu.addAction(rename_action)
 
         # Add actions to the Help menu
         help_action = QAction("Help", self)
@@ -397,74 +620,30 @@ class MainWindow(QMainWindow):
         self.setAttribute(Qt.WA_DeleteOnClose, True)
         self.closeEvent = self.on_close_event
 
-    def update_table_display(self):
-        sample_data = [
-            "D1",
-            0.1,
-            0.002,
-            -0.0005,
-            "W",
-            "PRT-00000",
-            "Here's an example note.",
-        ]
-        self.constants_widget.add_row(sample_data)
+    # def update_table_display(self):
+    #     sample_data = [
+    #         "D1",
+    #         0.1,
+    #         0.002,
+    #         -0.0005,
+    #         "W",
+    #         "PRT-00000",
+    #         "Here's an example note.",
+    #     ]
+    #     self.constants_widget.add_row(sample_data)
 
-    def add_constant(self):
-        new_data = ["Cxx", 0.0, "-"]
-        self.constants_widget.add_row(new_data)
+    def add_item(
+        self, widget: EditableTableWidget, position: InsertPosition = InsertPosition.ADD
+    ):
+        widget.insert_row(position, select_after=True)
 
-        if self.constants_widget.rowCount() > 0:
-            last_row_index = self.constants_widget.rowCount() - 1
-            self.constants_widget.setCurrentCell(last_row_index, 0)
-            self.constants_widget.editItem(
-                self.constants_widget.item(last_row_index, 0)
-            )
-
-    def delete_constant(self):
+    def delete_item(self, widget):
         selected_rows = sorted(
-            set(index.row() for index in self.constants_widget.selectedIndexes()),
+            set(index.row() for index in widget.selectedIndexes()),
             reverse=True,
         )
         for row in selected_rows:
-            self.constants_widget.removeRow(row)
-
-    def add_dimension(self):
-        new_data = ["Dxx", 0.0, 0.0, 0.0, "U", "-", "-"]
-        self.dimensions_widget.add_row(new_data)
-
-        if self.dimensions_widget.rowCount() > 0:
-            last_row_index = self.dimensions_widget.rowCount() - 1
-            self.dimensions_widget.setCurrentCell(last_row_index, 0)
-            self.dimensions_widget.editItem(
-                self.dimensions_widget.item(last_row_index, 0)
-            )
-
-    def delete_dimension(self):
-        selected_rows = sorted(
-            set(index.row() for index in self.dimensions_widget.selectedIndexes()),
-            reverse=True,
-        )
-        for row in selected_rows:
-            self.dimensions_widget.removeRow(row)
-
-    def add_expression(self):
-        new_data = ["Exx", "-", "", "", "W", "-"]
-        self.expressions_widget.add_row(new_data)
-
-        if self.expressions_widget.rowCount() > 0:
-            last_row_index = self.expressions_widget.rowCount() - 1
-            self.expressions_widget.setCurrentCell(last_row_index, 0)
-            self.expressions_widget.editItem(
-                self.expressions_widget.item(last_row_index, 0)
-            )
-
-    def delete_expression(self):
-        selected_rows = sorted(
-            set(index.row() for index in self.expressions_widget.selectedIndexes()),
-            reverse=True,
-        )
-        for row in selected_rows:
-            self.expressions_widget.removeRow(row)
+            widget.removeRow(row)
 
     def update_results(self):
         c_data = self.constants_widget.get_all_data()
@@ -485,7 +664,10 @@ class MainWindow(QMainWindow):
                 conduct_tolerance_contribution=T,
             )
 
+            saved_scroll = self.text_edit.verticalScrollBar().value()
             self.text_edit.setPlainText("\n".join(print_lines))
+            self.text_edit.verticalScrollBar().setValue(saved_scroll)
+
             self.statusBar().showMessage("Updated results", 1500)
         except RuntimeError as r:
             self.show_non_fatal_error(r)
@@ -510,6 +692,104 @@ class MainWindow(QMainWindow):
         self.SAVE_FILE = None
 
         self.statusBar().showMessage("New analysis", 1500)
+
+    def rename_item(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Rename Item")
+
+        layout = QVBoxLayout()
+
+        old_name_label = QLabel("Enter old name:")
+        old_name_input = QLineEdit()
+        layout.addWidget(old_name_label)
+        layout.addWidget(old_name_input)
+
+        new_name_label = QLabel("Enter new name:")
+        new_name_input = QLineEdit()
+        layout.addWidget(new_name_label)
+        layout.addWidget(new_name_input)
+
+        button_layout = QHBoxLayout()
+
+        ok_button = QPushButton("OK")
+        cancel_button = QPushButton("Cancel")
+        button_layout.addStretch()
+        button_layout.addWidget(ok_button)
+        button_layout.addWidget(cancel_button)
+
+        layout.addLayout(button_layout)
+
+        dialog.setLayout(layout)
+
+        def on_ok_clicked():
+            old_name = old_name_input.text().strip()
+            new_name = new_name_input.text().strip()
+
+            if not old_name:
+                QMessageBox.warning(
+                    self, "Invalid Operation", "Old name cannot be empty."
+                )
+                return
+
+            if not new_name:
+                QMessageBox.warning(
+                    self, "Invalid Operation", "New name cannot be empty."
+                )
+                return
+
+            # Check if new_name already exists in any of the three widgets
+            if (
+                self.constants_widget.has_key(new_name)
+                or self.dimensions_widget.has_key(new_name)
+                or self.expressions_widget.has_key(new_name)
+            ):
+
+                reply = QMessageBox.question(
+                    self,
+                    "Name Conflict",
+                    "The new name already exists. Do you want to continue?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No,
+                )
+
+                if reply == QMessageBox.No:
+                    return
+
+            # If both inputs are valid and user chooses to proceed, accept the dialog
+            dialog.accept()
+
+        ok_button.clicked.connect(on_ok_clicked)
+        cancel_button.clicked.connect(dialog.reject)
+
+        if dialog.exec_() == QDialog.Accepted:
+            old_name = old_name_input.text().strip()
+            new_name = new_name_input.text().strip()
+
+            renamed = False
+
+            for widget in [self.constants_widget, self.dimensions_widget]:
+                for row in range(widget.rowCount()):
+                    item = widget.item(row, 0)
+                    if item and item.text() == old_name:
+                        item.setText(new_name)
+                        renamed = True
+
+            if renamed:
+                for row in range(self.expressions_widget.rowCount()):
+                    item = self.expressions_widget.item(row, 1)
+                    if item:
+                        item_text = item.text()
+                        new_item_text = re.sub(
+                            rf"\b{re.escape(old_name)}\b", new_name, item_text
+                        )
+                        item.setText(new_item_text)
+
+            if renamed:
+                QMessageBox.information(
+                    self, "Success", f"{old_name} successfully renamed to {new_name}."
+                )
+            else:
+                QMessageBox.warning(self, "Error", f"{old_name} not found.")
 
     def ask_to_save(self):
         msg_box = QMessageBox()
@@ -619,7 +899,7 @@ class MainWindow(QMainWindow):
                     else:
                         if current_widget is not None:
                             data = line.split(",", split_limit)
-                            current_widget.add_row(data)
+                            current_widget.insert_row(InsertPosition.ADD, data)
                 self.store_state_at_save()
 
     def save_outputs(self):

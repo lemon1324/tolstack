@@ -18,17 +18,43 @@ class TestExpressionFunctions(unittest.TestCase):
     def test_is_operator(self):
         self.assertTrue(is_operator("+"))
         self.assertTrue(is_operator("-"))
+        self.assertTrue(is_operator("sin"))
         self.assertFalse(is_operator("a"))
         self.assertFalse(is_operator("1"))
         self.assertFalse(
             is_operator("u-")
         )  # unary operator encoding is not an operator for infix expressions
 
+    def test_can_be_unary_operator_with_minus(self):
+        token = "-"
+        self.assertTrue(can_be_unary_operator(token))
+
+    def test_can_be_unary_operator_with_sin(self):
+        token = "sin"
+        self.assertTrue(can_be_unary_operator(token))
+
+    def test_can_be_unary_operator_with_invalid(self):
+        token = "+"
+        self.assertFalse(can_be_unary_operator(token))
+
+    def test_is_unary_operator_with_u_minus(self):
+        token = "u-"
+        self.assertTrue(is_unary_operator(token))
+
+    def test_is_unary_operator_with_sine(self):
+        token = "sin"
+        self.assertTrue(is_unary_operator(token))
+
+    def test_is_unary_operator_with_invalid(self):
+        token = "+"
+        self.assertFalse(is_unary_operator(token))
+
     def test_is_variable(self):
         self.assertTrue(is_variable("D1"))
         self.assertTrue(is_variable("E13"))
         self.assertTrue(is_variable("LONG_NAME_EXPRESSION"))
         self.assertFalse(is_variable("+="))
+        self.assertFalse(is_variable("sin"))
         self.assertFalse(is_variable("*"))
         self.assertFalse(
             is_variable("u-")
@@ -141,7 +167,7 @@ class TestInfixToRPN(unittest.TestCase):
 
     def test_complex_expression(self):
         expression = "3 + 4 * ( 2 - 1 ) / 5 ^ 2"
-        expected_output = ["3", "4", "2", "1", "-", "*", "5", "2", "^", "/", "+"]
+        expected_output = ["3", "4", "2", "1", "-", "5", "2", "^", "/", "*", "+"]
         self.assertEqual(infix_to_rpn(expression), expected_output)
 
     def test_complex_expression_2(self):
@@ -167,6 +193,68 @@ class TestInfixToRPN(unittest.TestCase):
     def test_unary_minus_with_parentheses(self):
         expression = "3 * ( -4 + 2 )"
         expected_output = ["3", "4", "u-", "2", "+", "*"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_unary_minus_outside_parentheses(self):
+        expression = "3 * -( 4 + 2 )"
+        expected_output = ["3", "4", "2", "+", "u-", "*"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_double_unary_minus(self):
+        expression = "--x"
+        expected_output = ["x", "u-", "u-"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+
+class TestTrigInfixToRPN(unittest.TestCase):
+    def test_simple_sine(self):
+        expression = "sin x"
+        expected_output = ["x", "sin"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_simple_cosine(self):
+        expression = "cos x"
+        expected_output = ["x", "cos"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_simple_tangent(self):
+        expression = "tan x"
+        expected_output = ["x", "tan"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_simple_sine_parens(self):
+        expression = "sin(x)"
+        expected_output = ["x", "sin"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_simple_sine_negation_inside(self):
+        expression = "sin -x"
+        expected_output = ["x", "u-", "sin"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_simple_sine_negation_outside(self):
+        expression = "-sin x"
+        expected_output = ["x", "sin", "u-"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_sine_addition(self):
+        expression = "sin x + y"
+        expected_output = ["x", "sin", "y", "+"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_sine_multiplication(self):
+        expression = "sin x * y"
+        expected_output = ["x", "sin", "y", "*"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_sine_with_parentheses(self):
+        expression = "sin (x + y)"
+        expected_output = ["x", "y", "+", "sin"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_complex_expression(self):
+        expression = "sin x + cos y * tan z"
+        expected_output = ["x", "sin", "y", "cos", "z", "tan", "*", "+"]
         self.assertEqual(infix_to_rpn(expression), expected_output)
 
 
