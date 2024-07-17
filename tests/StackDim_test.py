@@ -10,6 +10,10 @@ from tolstack.StackUtils import (
     divCombination,
 )
 
+import numpy as np
+
+from tolstack.StackUtils import sinBounds, cosBounds, tanBounds
+
 
 class TestStackDim(unittest.TestCase):
     def setUp(self) -> None:
@@ -499,3 +503,75 @@ class TestDivStackDims(unittest.TestCase):
 
     def test_note(self) -> None:
         self.assertEqual(self.result.note, "Derived.")
+
+
+class TestStackDimSinMethod(unittest.TestCase):
+
+    def test_sin_with_numeric_value(self):
+        result = StackDim.sin(np.pi / 2)
+        self.assertAlmostEqual(result.nom, 1.0)
+        self.assertEqual(result.plus, 0.0)
+        self.assertEqual(result.minus, 0.0)
+        self.assertEqual(result.disttype, DistType.UNIFORM)
+
+    def test_sin_with_stackdim_instance(self):
+        dim = StackDim(nominal=np.pi / 4, plus=0.1, minus=-0.1, key="x")
+        result = StackDim.sin(dim)
+
+        expected_nom = np.sin(dim.nom)
+        expected_plus, expected_minus = sinBounds((dim.nom, dim.plus, dim.minus))
+
+        self.assertAlmostEqual(result.nom, expected_nom)
+        self.assertAlmostEqual(result.plus, expected_plus)
+        self.assertAlmostEqual(result.minus, expected_minus)
+        self.assertEqual(result.disttype, DistType.DERIVED)
+        self.assertEqual(result.note, "Derived.")
+        self.assertEqual(result.key, f"sin({dim.key})")
+
+
+class TestStackDimCosMethod(unittest.TestCase):
+
+    def test_cos_with_numeric_value(self):
+        result = StackDim.cos(np.pi / 2)
+        self.assertAlmostEqual(result.nom, 0.0)
+        self.assertEqual(result.plus, 0.0)
+        self.assertEqual(result.minus, 0.0)
+        self.assertEqual(result.disttype, DistType.UNIFORM)
+
+    def test_cos_with_stackdim_instance(self):
+        dim = StackDim(nominal=np.pi / 4, plus=0.1, minus=-0.1, key="x")
+        result = StackDim.cos(dim)
+
+        expected_nom = np.cos(dim.nom)
+        expected_plus, expected_minus = cosBounds((dim.nom, dim.plus, dim.minus))
+
+        self.assertAlmostEqual(result.nom, expected_nom)
+        self.assertAlmostEqual(result.plus, expected_plus)
+        self.assertAlmostEqual(result.minus, expected_minus)
+        self.assertEqual(result.disttype, DistType.DERIVED)
+        self.assertEqual(result.note, "Derived.")
+        self.assertEqual(result.key, f"cos({dim.key})")
+
+
+class TestStackDimTanMethod(unittest.TestCase):
+
+    def test_tan_with_numeric_value(self):
+        result = StackDim.tan(np.pi / 4)
+        self.assertAlmostEqual(result.nom, 1.0)
+        self.assertEqual(result.plus, 0.0)
+        self.assertEqual(result.minus, 0.0)
+        self.assertEqual(result.disttype, DistType.UNIFORM)
+
+    def test_tan_with_stackdim_instance(self):
+        dim = StackDim(nominal=np.pi / 4, plus=0.1, minus=-0.1, key="x")
+        result = StackDim.tan(dim)
+
+        expected_nom = np.tan(dim.nom)
+        expected_plus, expected_minus = tanBounds((dim.nom, dim.plus, dim.minus))
+
+        self.assertAlmostEqual(result.nom, expected_nom)
+        self.assertAlmostEqual(result.plus, expected_plus)
+        self.assertAlmostEqual(result.minus, expected_minus)
+        self.assertEqual(result.disttype, DistType.DERIVED)
+        self.assertEqual(result.note, "Derived.")
+        self.assertEqual(result.key, f"tan({dim.key})")

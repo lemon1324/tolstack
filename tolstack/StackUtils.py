@@ -1,5 +1,6 @@
 import re
 import numpy as np
+from math import isclose
 
 # Precedence levels of operators
 PRECEDENCE = {
@@ -12,9 +13,12 @@ PRECEDENCE = {
     "sin": 10,
     "cos": 10,
     "tan": 10,
+    "sind": 10,
+    "cosd": 10,
+    "tand": 10,
 }
 OPERATORS = "+-*/^"
-TRIG_OPERATORS = ["sin", "cos", "tan"]
+TRIG_OPERATORS = ["sin", "cos", "tan", "sind", "cosd", "tand"]
 INFIX_UNARY_OPERATORS = ["-"]
 RPN_UNARY_OPERATORS = ["u-"]
 SYMBOLS = "(" + OPERATORS
@@ -218,7 +222,7 @@ def infix_to_rpn(expression):
                 while (
                     operator_stack
                     and operator_stack[-1] != "("
-                    and get_precedence(operator_stack[-1]) > get_precedence(token)
+                    and get_precedence(operator_stack[-1]) >= get_precedence(token)
                 ):
                     output.append(operator_stack.pop())
                 operator_stack.append(token)
@@ -331,3 +335,120 @@ def expCombination(
 
     deviations = powers - nom
     return max(deviations), min(deviations)
+
+
+def sinBounds(dim: tuple[float, float, float]) -> tuple[float, float]:
+    """
+    Utility function to compute min/max of the sine of a toleranced value.
+
+    The initial assumption is that the max is the higher of the two values computed from the
+    tolerance limits, and the min is the lower.
+    For the sine function, the max may accur at an interior point if for some k pi*(1/2+2*k) is within the range.
+    In this case, the maximum is 1.
+    Similarly for the min, it is -1 if for some k pi*(-1/2 + k) is within the range.
+
+        :param dim: a 3-tuple of the nominal value, plus, and minus tolerances for a StackDim.
+        :returns: A 2-tuple containing the plus and minus tolerances of the result of worst-case taking sin(dim).
+    """
+
+    _upper = dim[0] + dim[1]
+    _lower = dim[0] + dim[2]
+    _pi_by_2 = np.pi / 2
+
+    _min = (
+        -1
+        if contains_angle(_lower, _upper, -_pi_by_2)
+        else np.min(np.sin([_lower, _upper]))
+    )
+    _max = (
+        1
+        if contains_angle(_lower, _upper, _pi_by_2)
+        else np.max(np.sin([_lower, _upper]))
+    )
+
+    nom = np.sin(dim[0])
+
+    return (_max - nom, _min - nom)
+
+
+def cosBounds(dim: tuple[float, float, float]) -> tuple[float, float]:
+    """
+    Utility function to compute min/max of the cosine of a toleranced value.
+
+    The initial assumption is that the max is the higher of the two values computed from the
+    tolerance limits, and the min is the lower.
+    For the cosine function, the max may accur at an interior point if for some k 2*pi*k is within the range.
+    In this case, the maximum is 1.
+    Similarly for the min, it is -1 if for some k pi*(1 + 2*k) is within the range.
+
+        :param dim: a 3-tuple of the nominal value, plus, and minus tolerances for a StackDim.
+        :returns: A 2-tuple containing the plus and minus tolerances of the result of worst-case taking cos(dim).
+    """
+    _upper = dim[0] + dim[1]
+    _lower = dim[0] + dim[2]
+
+    _min = (
+        -1
+        if contains_angle(_lower, _upper, np.pi)
+        else np.min(np.cos([_lower, _upper]))
+    )
+    _max = 1 if contains_angle(_lower, _upper, 0) else np.max(np.cos([_lower, _upper]))
+
+    nom = np.cos(dim[0])
+
+    return (_max - nom, _min - nom)
+
+
+def tanBounds(dim: tuple[float, float, float]) -> tuple[float, float]:
+    """
+    Utility function to compute min/max of the tangent of a toleranced value.
+
+    The initial assumption is that the max is the higher of the two values computed from the
+    tolerance limits, and the min is the lower.
+    For the tangent function, both extrema blow up if pi/2 or -pi/2 are in the range. In this
+    case, throws a ValueError indicating the issue.
+
+        :param dim: a 3-tuple of the nominal value, plus, and minus tolerances for a StackDim.
+        :returns: A 2-tuple containing the plus and minus tolerances of the result of worst-case taking tan(dim).
+    """
+    _upper = dim[0] + dim[1]
+    _lower = dim[0] + dim[2]
+
+    if contains_angle(_lower, _upper, np.pi / 2) or contains_angle(
+        _lower, _upper, -np.pi / 2
+    ):
+        raise ValueError(
+            f"Cannot compute tangent bounds for input {dim}, range contains a discontinuity in the tangent function."
+        )
+
+    _min = np.min(np.tan([_lower, _upper]))
+    _max = np.max(np.tan([_lower, _upper]))
+    nom = np.tan(dim[0])
+
+    return (_max - nom, _min - nom)
+
+
+def contains_angle(lower, upper, theta):
+    """
+    Checks if the angle theta exists in the closed interval from the lower to upper bound, mod 2*pi
+
+    This is true when lower < theta + 2*pi*k < upper.
+    Refactoring, we have (lower-theta)/(2*pi) < k < (upper-theta)/(2*pi)
+    Therefore if ceil of the left hand side is less than or equal to floor of the right hand side, theta is within the range
+
+    Parameters:
+    lower (int or float): The lower bound parameter in radians.
+    upper (int or float): The upper bound parameter in radians.
+    theta (int or float): The angle parameter in radians.
+
+    Returns:
+    bool: True if theta is within the range mod 2*pi, False otherwise.
+    """
+
+    left = (lower - theta) / (2 * np.pi)
+    right = (upper - theta) / (2 * np.pi)
+
+    right_eval = np.floor(right)
+    left_eval = np.ceil(left)
+
+    return right_eval - left_eval > 0 or isclose(right_eval, left_eval, abs_tol=1e-9)

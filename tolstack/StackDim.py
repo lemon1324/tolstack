@@ -7,6 +7,7 @@ from numpy import ndarray
 from numpy import full
 from numpy import quantile
 from numpy import power as np_power
+import numpy as np
 
 from math import isclose
 
@@ -14,7 +15,14 @@ from scipy.stats import norm
 
 from tolstack.StackTypes import DistType, get_code_from_dist, EvalType
 
-from tolstack.StackUtils import mulCombination, divCombination, expCombination
+from tolstack.StackUtils import (
+    mulCombination,
+    divCombination,
+    expCombination,
+    sinBounds,
+    cosBounds,
+    tanBounds,
+)
 
 
 class StackDim:
@@ -661,3 +669,40 @@ class StackDim:
             raise TypeError(
                 f"unsupported operand type(s) for **: '{type(other)}' and '{self.__class__}'"
             )
+
+    @staticmethod
+    def _trig_function(dim, func, bounds_func, func_name):
+        if isinstance(dim, (int, float)):
+            return StackDim(nominal=func(dim))
+        elif isinstance(dim, StackDim):
+            _nom = func(dim.nom)
+            (_plus, _minus) = bounds_func((dim.nom, dim.plus, dim.minus))
+            _type = DistType.DERIVED
+            _sample = func(dim.dist())
+            _note = "Derived."
+            _key = f"{func_name}({dim.key})"
+            return StackDim(_nom, _plus, _minus, _type, _sample, note=_note, key=_key)
+
+    @staticmethod
+    def sin(dim):
+        return StackDim._trig_function(dim, np.sin, sinBounds, "sin")
+
+    @staticmethod
+    def sind(dim):
+        return StackDim._trig_function(dim * np.pi / 180, np.sin, sinBounds, "sind")
+
+    @staticmethod
+    def cos(dim):
+        return StackDim._trig_function(dim, np.cos, cosBounds, "cos")
+
+    @staticmethod
+    def cosd(dim):
+        return StackDim._trig_function(dim * np.pi / 180, np.cos, cosBounds, "cosd")
+
+    @staticmethod
+    def tan(dim):
+        return StackDim._trig_function(dim, np.tan, tanBounds, "tan")
+
+    @staticmethod
+    def tand(dim):
+        return StackDim._trig_function(dim * np.pi / 180, np.tan, tanBounds, "tand")

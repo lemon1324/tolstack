@@ -15,7 +15,7 @@ from tolstack.StackUtils import (
 
 from typing import Dict
 
-from numpy import log as np_log
+import numpy as np
 
 
 class StackExpr:
@@ -119,6 +119,18 @@ class StackExpr:
                 return _left**_right
             case "u-":
                 return -_right
+            case "sin":
+                return StackDim.sin(_right)
+            case "cos":
+                return StackDim.cos(_right)
+            case "tan":
+                return StackDim.tan(_right)
+            case "sind":
+                return StackDim.sind(_right)
+            case "cosd":
+                return StackDim.cosd(_right)
+            case "tand":
+                return StackDim.tand(_right)
             case _:
                 raise ValueError(
                     f"Error computing '{node.key}' when evaluating expression, operation not defined."
@@ -140,9 +152,11 @@ class StackExpr:
             else:
                 return (nom, 1)
 
-        _left, _dleft = self._evaluateDerivative(node.left, key) if node.left else None
+        _left, _dleft = (
+            self._evaluateDerivative(node.left, key) if node.left else (None, None)
+        )
         _right, _dright = (
-            self._evaluateDerivative(node.right, key) if node.right else None
+            self._evaluateDerivative(node.right, key) if node.right else (None, None)
         )
 
         match node.key:
@@ -163,10 +177,37 @@ class StackExpr:
                 return (
                     _left**_right,
                     _left**_right
-                    * (_dleft * (_right / _left) + _dright * np_log(_left)),
+                    * (_dleft * (_right / _left) + _dright * np.log(_left)),
                 )
             case "u-":
                 return (-_right, -_dright)
+            case "sin":
+                return (np.sin(_right), np.cos(_right) * _dright)
+            case "sind":
+                return (
+                    np.sin(_right * np.pi / 180),
+                    np.cos(_right * np.pi / 180) * (_dright * np.pi / 180),
+                )
+            case "cos":
+                return (np.cos(_right), -np.sin(_right) * _dright)
+            case "cosd":
+                return (
+                    np.cos(_right * np.pi / 180),
+                    -np.sin(_right * np.pi / 180) * (_dright * np.pi / 180),
+                )
+            case "tan":
+                return (
+                    np.tan(_right),
+                    ((4 * np.cos(_right) ** 2) / (np.cos(2 * _right) + 1) ** 2)
+                    * _dright,
+                )
+            case "tand":
+                _rd = _right * np.pi / 180
+                _drd = _dright * np.pi / 180
+                return (
+                    np.tan(_rd),
+                    ((4 * np.cos(_rd) ** 2) / (np.cos(2 * _rd) + 1) ** 2) * _drd,
+                )
             case _:
                 raise ValueError(
                     f"Error computing '{node.key}' when evaluating derivative, operation not defined."
@@ -202,6 +243,18 @@ class StackExpr:
                 return _left**_right
             case "u-":
                 return -_right
+            case "sin":
+                return StackDim.sin(_right)
+            case "sind":
+                return StackDim.sind(_right)
+            case "cos":
+                return StackDim.cos(_right)
+            case "cosd":
+                return StackDim.cosd(_right)
+            case "tan":
+                return StackDim.tan(_right)
+            case "tand":
+                return StackDim.tand(_right)
             case _:
                 raise ValueError(
                     f"Error computing '{node.key}' when evaluating contribution, operation not defined."
@@ -235,6 +288,18 @@ class StackExpr:
         match operator:
             case "u-":
                 return f"-{operand}"
+            case "sin":
+                return f"sin({operand})"
+            case "sind":
+                return f"sind({operand})"
+            case "cos":
+                return f"cos({operand})"
+            case "cosd":
+                return f"cosd({operand})"
+            case "tan":
+                return f"tan({operand})"
+            case "tand":
+                return f"tand({operand})"
             case _:
                 raise ValueError(
                     f"Error computing '{operator}' when formatting tree, unary operation {operator} not defined."

@@ -4,7 +4,7 @@ from tolstack.StackTypes import get_code_from_dist
 
 from tolstack.StackUtils import word_wrap
 
-from math import isinf
+from math import isinf, isclose
 
 FORMAT_WIDTH = 80
 
@@ -20,17 +20,15 @@ def format_constant(C: StackDim):
 
 
 def format_dimension_header():
-    return (
-        f"{'ID':>10}{'NOMINAL':>10}{'PLUS':>8}{'MINUS':>8}{'DIST':>6}{'PN':>12}  NOTE"
-    )
+    return f"{'ID':>10}{'NOMINAL':>10}{'PLUS':>8}{'MINUS':>8}{'D':>4}{'PN':>12}  NOTE"
 
 
 def format_dimension(D: StackDim):
     return word_wrap(
         f"{D.key:>10}{D.nom:10.4g}{D.plus:+8.4g}{D.minus:+8.4g}"
-        + f"{get_code_from_dist(D.disttype):>6}{D.PN if D.PN else '':>12}  {D.note if D.note else ''}",
+        + f"{get_code_from_dist(D.disttype):>4}{D.PN if D.PN else '':>12}  {D.note if D.note else ''}",
         FORMAT_WIDTH,
-        56,
+        54,
     )
 
 
@@ -70,7 +68,9 @@ def format_expression(E: StackExpr):
     )
 
     if not isinf(E.lower):
-        _pass = E.lower < _val.lower(E.method)
+        _pass = E.lower <= _val.lower(E.method) or isclose(
+            E.lower, _val.lower(E.method), abs_tol=1e-9
+        )
         lines.append(
             f"{'' if _pass else '***':<9}Lower Bound:{E.lower:10.4g}  {'PASS' if _pass else f'FAIL: {_val.lower(E.method):.4g}'}"
         )
@@ -78,7 +78,9 @@ def format_expression(E: StackExpr):
         lines.append(f"{9*' '}Lower Bound:{'NONE':>10}  PASS")
 
     if not isinf(E.upper):
-        _pass = E.upper > _val.upper(E.method)
+        _pass = E.upper >= _val.upper(E.method) or isclose(
+            E.upper, _val.upper(E.method), abs_tol=1e-9
+        )
         lines.append(
             f"{'' if _pass else '***':<9}Upper Bound:{E.upper:10.4g}  {'PASS' if _pass else f'FAIL: {_val.upper(E.method):.4g}'}"
         )
@@ -95,6 +97,11 @@ def format_sensitivity(E: StackExpr, sensitivities):
 
     scale = max(abs(val) for val in sensitivities.values())
 
+    # avoid division by zero in format
+    # If scale is zero then all items are near zero so scale doesn't matter.
+    if isclose(scale, 0, abs_tol=1e-9):
+        scale = 1
+
     for var, partial in sensitivities.items():
         lines.append(
             f"{'∂/∂'+var:>16}: {partial:10.2g} {format_center_bar(partial/scale)}"
@@ -109,6 +116,11 @@ def format_contribution(E: StackExpr, contributions):
     lines.append(f"{7*' '}Contributions:")
 
     scale = max(abs(val) for val in contributions.values())
+
+    # avoid division by zero in format
+    # If scale is zero then all items are near zero so scale doesn't matter.
+    if isclose(scale, 0, abs_tol=1e-9):
+        scale = 1
 
     for var, tol in contributions.items():
         lines.append(f"{var:>16}: {f'±{tol:.3g}'.rjust(10)} {format_bar(tol/scale)}")

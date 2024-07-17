@@ -1,0 +1,16 @@
+*CONSTANTS, VALUE, NOTE
+C1,24e-6,Coefficient of thermal expansion, aluminum, in/in per C.
+C2,17.3e-6,Coefficient of thermal expansion, 304 stainless, in/in per C.
+*DIMENSIONS, NOMINAL, PLUS, MINUS, DISTRIBUTION, PART NUMBER, NOTE
+D1,5.01,.005,0,U,Channel,Inside dimension of a steel channel to fit blocks into.
+D2,1,.002,0,U,Block A,Outer dimension of the first aluminum block.
+D3,2,.004,-.004,U,Block B,Outer dimension of the second aluminum block.
+T1,0.0,5,-5,U,TEMP,Variation of each part from nominal temperature.
+*EXPRESSIONS, VALUE, LOWER, UPPER, METHOD, NOTE
+S1,1+T1*C2,,,W,Scale factor for steel block under temperature variation.
+S2,1+T1*C1,,,W,Scale factor for aluminum blocks under temperature variation.
+E2,D1*S1,,,W,Worst-case size of channel under thermal expansion.
+E3,D2*S2,,,W,Worst-case size of small aluminum block under thermal expansion.
+E4,D3*S2,,,W,Worst-case size of large aluminum block under thermal expansion.
+E1,D1 - 3*D2 - D3,0,.02,W,Worst-case gap when assembling three small blocks and one large.
+E5,E2 - 3*E3 - E4,0,.02,W,Worst-case gap when assembling in thermal environment.

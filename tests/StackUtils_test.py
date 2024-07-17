@@ -2,6 +2,8 @@ import unittest
 
 from tolstack.StackUtils import *
 
+import numpy as np
+
 
 class TestExpressionFunctions(unittest.TestCase):
 
@@ -167,12 +169,17 @@ class TestInfixToRPN(unittest.TestCase):
 
     def test_complex_expression(self):
         expression = "3 + 4 * ( 2 - 1 ) / 5 ^ 2"
-        expected_output = ["3", "4", "2", "1", "-", "5", "2", "^", "/", "*", "+"]
+        expected_output = ['3', '4', '2', '1', '-', '*', '5', '2', '^', '/', '+']
         self.assertEqual(infix_to_rpn(expression), expected_output)
 
     def test_complex_expression_2(self):
         expression = "(D2/D3) - (D3/(D1+D2))"
         expected_output = ["D2", "D3", "/", "D3", "D1", "D2", "+", "/", "-"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_series_subtraction(self):
+        expression = "x - y - z"
+        expected_output = ["x", "y", "-", "z", "-"]
         self.assertEqual(infix_to_rpn(expression), expected_output)
 
     def test_nested_parentheses(self):
@@ -378,3 +385,143 @@ class TestExpCombination(unittest.TestCase):
         plus, minus = expCombination(a, b)
         self.assertAlmostEqual(plus, 0.399280770828355)
         self.assertAlmostEqual(minus, -0.5314431944106439)
+
+
+class TestContainsAngle(unittest.TestCase):
+
+    def test_angle_within_range(self):
+        self.assertTrue(contains_angle(0, np.pi, np.pi / 2))
+
+    def test_angle_outside_range(self):
+        self.assertFalse(contains_angle(0, np.pi / 2, np.pi))
+
+    def test_angle_equal_lower_bound(self):
+        self.assertTrue(contains_angle(np.pi / 2, np.pi, np.pi / 2))
+
+    def test_angle_equal_upper_bound(self):
+        self.assertTrue(contains_angle(0, np.pi / 2, np.pi / 2))
+
+    def test_angle_outside_range_negative(self):
+        self.assertFalse(contains_angle(-np.pi / 4, np.pi / 4, 3 * np.pi / 4))
+
+    def test_angle_large_values(self):
+        self.assertTrue(contains_angle(0, 10 * np.pi, 4.5 * np.pi))
+
+    def test_angle_negative_theta(self):
+        self.assertTrue(contains_angle(-np.pi, 0, -np.pi / 2))
+
+    def test_angle_in_modulo_range(self):
+        self.assertTrue(contains_angle(2 * np.pi, 3 * np.pi, np.pi / 2))
+
+
+class TestSinBounds(unittest.TestCase):
+
+    def test_low_range(self):
+        (nom, plus, minus) = (np.pi / 4, np.pi / 8, -np.pi / 8)
+        (upper, lower) = sinBounds((nom, plus, minus))
+        self.assertAlmostEqual(lower, np.sin(nom + minus) - np.sin(nom))
+        self.assertAlmostEqual(upper, np.sin(nom + plus) - np.sin(nom))
+
+    def test_high_range(self):
+        (nom, plus, minus) = (3 * np.pi / 4, np.pi / 8, -np.pi / 8)
+        (upper, lower) = sinBounds((nom, plus, minus))
+        self.assertAlmostEqual(lower, np.sin(nom + plus) - np.sin(nom))
+        self.assertAlmostEqual(upper, np.sin(nom + minus) - np.sin(nom))
+
+    def test_max_in_range(self):
+        (nom, plus, minus) = (9 * np.pi / 16, np.pi / 8, -np.pi / 8)
+        (upper, lower) = sinBounds((nom, plus, minus))
+        self.assertAlmostEqual(lower, np.sin(nom + plus) - np.sin(nom))
+        self.assertAlmostEqual(upper, 1 - np.sin(nom))
+
+    def test_max_in_modulo_range(self):
+        (nom, plus, minus) = (41 * np.pi / 16, np.pi / 8, -np.pi / 8)
+        (upper, lower) = sinBounds((nom, plus, minus))
+        self.assertAlmostEqual(lower, np.sin(nom + plus) - np.sin(nom))
+        self.assertAlmostEqual(upper, 1 - np.sin(nom))
+
+    def test_min_in_range(self):
+        (nom, plus, minus) = (-9 * np.pi / 16, np.pi / 8, -np.pi / 8)
+        (upper, lower) = sinBounds((nom, plus, minus))
+        self.assertAlmostEqual(lower, -1 - np.sin(nom))
+        self.assertAlmostEqual(upper, np.sin(nom + minus) - np.sin(nom))
+
+    def test_min_in_modulo_range(self):
+        (nom, plus, minus) = (25 * np.pi / 16, np.pi / 8, -np.pi / 8)
+        (upper, lower) = sinBounds((nom, plus, minus))
+        self.assertAlmostEqual(lower, -1 - np.sin(nom))
+        self.assertAlmostEqual(upper, np.sin(nom + plus) - np.sin(nom))
+
+    def test_both_in_range(self):
+        (nom, plus, minus) = (0, 3 * np.pi / 2, -3 * np.pi / 2)
+        (upper, lower) = sinBounds((nom, plus, minus))
+        self.assertAlmostEqual(lower, -1 - np.sin(nom))
+        self.assertAlmostEqual(upper, 1 - np.sin(nom))
+
+
+class TestCosBounds(unittest.TestCase):
+
+    def test_low_range(self):
+        (nom, plus, minus) = (-np.pi / 4, np.pi / 8, -np.pi / 8)
+        (upper, lower) = cosBounds((nom, plus, minus))
+        self.assertAlmostEqual(lower, np.cos(nom + minus) - np.cos(nom))
+        self.assertAlmostEqual(upper, np.cos(nom + plus) - np.cos(nom))
+
+    def test_high_range(self):
+        (nom, plus, minus) = (3 * np.pi / 4, np.pi / 8, -np.pi / 8)
+        (upper, lower) = cosBounds((nom, plus, minus))
+        self.assertAlmostEqual(lower, np.cos(nom + plus) - np.cos(nom))
+        self.assertAlmostEqual(upper, np.cos(nom + minus) - np.cos(nom))
+
+    def test_max_in_range(self):
+        (nom, plus, minus) = (0, np.pi / 8, -np.pi / 8)
+        (upper, lower) = cosBounds((nom, plus, minus))
+        self.assertAlmostEqual(lower, np.cos(nom + plus) - np.cos(nom))
+        self.assertAlmostEqual(upper, 1 - np.cos(nom))
+
+    def test_max_in_modulo_range(self):
+        (nom, plus, minus) = (2 * np.pi, np.pi / 8, -np.pi / 8)
+        (upper, lower) = cosBounds((nom, plus, minus))
+        self.assertAlmostEqual(lower, np.cos(nom + plus) - np.cos(nom))
+        self.assertAlmostEqual(upper, 1 - np.cos(nom))
+
+    def test_min_in_range(self):
+        (nom, plus, minus) = (np.pi, np.pi / 8, -np.pi / 8)
+        (upper, lower) = cosBounds((nom, plus, minus))
+        self.assertAlmostEqual(lower, -1 - np.cos(nom))
+        self.assertAlmostEqual(upper, np.cos(nom + minus) - np.cos(nom))
+
+    def test_min_in_modulo_range(self):
+        (nom, plus, minus) = (3 * np.pi, np.pi / 8, -np.pi / 8)
+        (upper, lower) = cosBounds((nom, plus, minus))
+        self.assertAlmostEqual(lower, -1 - np.cos(nom))
+        self.assertAlmostEqual(upper, np.cos(nom + minus) - np.cos(nom))
+
+    def test_both_in_range(self):
+        (nom, plus, minus) = (-np.pi / 4, 3 * np.pi / 2, -3 * np.pi / 2)
+        (upper, lower) = cosBounds((nom, plus, minus))
+        self.assertAlmostEqual(lower, -1 - np.cos(nom))
+        self.assertAlmostEqual(upper, 1 - np.cos(nom))
+
+
+class TestTanBounds(unittest.TestCase):
+
+    def test_low_range(self):
+        (nom, plus, minus) = (np.pi / 4, np.pi / 8, -np.pi / 8)
+        (upper, lower) = tanBounds((nom, plus, minus))
+        self.assertAlmostEqual(lower, np.tan(nom + minus) - np.tan(nom))
+        self.assertAlmostEqual(upper, np.tan(nom + plus) - np.tan(nom))
+
+    def test_high_range(self):
+        (nom, plus, minus) = (3 * np.pi / 4, np.pi / 8, -np.pi / 8)
+        (upper, lower) = tanBounds((nom, plus, minus))
+        self.assertAlmostEqual(lower, np.tan(nom + minus) - np.tan(nom))
+        self.assertAlmostEqual(upper, np.tan(nom + plus) - np.tan(nom))
+
+    def test_discontinuity_in_range(self):
+        with self.assertRaises(ValueError) as context:
+            tanBounds((np.pi / 2, np.pi / 8, -np.pi / 8))
+
+    def test_discontinuity_in_modulo_range(self):
+        with self.assertRaises(ValueError) as context:
+            tanBounds((3 * np.pi / 2, np.pi / 8, -np.pi / 8))
