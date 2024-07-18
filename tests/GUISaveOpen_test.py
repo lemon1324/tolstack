@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import QApplication
 import os
 
 from tolstack.gui import MainWindow
+from tolstack.AppConfig import AppConfig
 
 
 class TestMainWindow(unittest.TestCase):
@@ -15,7 +16,8 @@ class TestMainWindow(unittest.TestCase):
         self.window = MainWindow()
 
     def test_open_and_save_file(self):
-        test_data = """*CONSTANTS, VALUE, NOTE
+        test_data = f"""*VERSIONINFO, {AppConfig.app_version}, {AppConfig.file_format_version}
+*CONSTANTS, VALUE, NOTE
 name1,10,note1
 name2,20,note2
 *DIMENSIONS, NOMINAL, PLUS, MINUS, DISTRIBUTION, PART NUMBER, NOTE

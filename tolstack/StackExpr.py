@@ -73,7 +73,7 @@ class StackExpr:
         variables = self.referenced_values()
 
         for var in variables:
-            mod = self._evaluate_ideal(self.root, var)
+            mod = self._evaluate(self.root, var)
             var_dim = self.value_map[var]
 
             if var_dim.range() == 0:
@@ -98,43 +98,38 @@ class StackExpr:
     def set_value_map(self, value_map):
         self.value_map = value_map
 
-    def _evaluate(self, node):
+    def _evaluate(self, node, ideal_key=None):
         # base case, node refers to a StackDim input variable or scalar
         if node.left is None and node.right is None:
-            return self._getLeafValue(node.key)
+            return self._getLeafValue(node.key, ideal_key)
 
-        _left = self._evaluate(node.left) if node.left else None
-        _right = self._evaluate(node.right) if node.right else None
+        _left = self._evaluate(node.left, ideal_key) if node.left else None
+        _right = self._evaluate(node.right, ideal_key) if node.right else None
 
-        match node.key:
-            case "+":
-                return _left + _right
-            case "-":
-                return _left - _right
-            case "*":
-                return _left * _right
-            case "/":
-                return _left / _right
-            case "^":
-                return _left**_right
-            case "u-":
-                return -_right
-            case "sin":
-                return StackDim.sin(_right)
-            case "cos":
-                return StackDim.cos(_right)
-            case "tan":
-                return StackDim.tan(_right)
-            case "sind":
-                return StackDim.sind(_right)
-            case "cosd":
-                return StackDim.cosd(_right)
-            case "tand":
-                return StackDim.tand(_right)
-            case _:
-                raise ValueError(
-                    f"Error computing '{node.key}' when evaluating expression, operation not defined."
-                )
+        return self._apply_operation(node.key, _left, _right)
+
+    def _apply_operation(self, op, left, right):
+        operations = {
+            "+": lambda l, r: l + r,
+            "-": lambda l, r: l - r,
+            "*": lambda l, r: l * r,
+            "/": lambda l, r: l / r,
+            "^": lambda l, r: l**r,
+            "u-": lambda _, r: -r,
+            "sin": lambda _, r: StackDim.sin(r),
+            "cos": lambda _, r: StackDim.cos(r),
+            "tan": lambda _, r: StackDim.tan(r),
+            "sind": lambda _, r: StackDim.sind(r),
+            "cosd": lambda _, r: StackDim.cosd(r),
+            "tand": lambda _, r: StackDim.tand(r),
+        }
+
+        try:
+            return operations[op](left, right)
+        except KeyError:
+            raise ValueError(
+                f"Error computing '{op}' when evaluating expression, operation not defined."
+            )
 
     def _evaluateDerivative(self, node, key) -> tuple[float, float]:
         # base case, node refers to a StackDim input variable or scalar
@@ -159,106 +154,79 @@ class StackExpr:
             self._evaluateDerivative(node.right, key) if node.right else (None, None)
         )
 
-        match node.key:
-            case "+":
-                return (_left + _right, _dleft + _dright)
-            case "-":
-                return (_left - _right, _dleft - _dright)
-            case "*":
+        return self._apply_operation(node.key, _left, _right, _dleft, _dright)
+
+    def _apply_operation(self, op, left, right, dleft=None, dright=None):
+        operations = {
+            "+": (lambda l, r: l + r, lambda l, r, dl, dr: (l + r, dl + dr)),
+            "-": (lambda l, r: l - r, lambda l, r, dl, dr: (l - r, dl - dr)),
+            "*": (
+                lambda l, r: l * r,
                 # product rule
-                return (_left * _right, _left * _dright + _right * _dleft)
-            case "/":
+                lambda l, r, dl, dr: (l * r, l * dr + r * dl),
+            ),
+            "/": (
+                lambda l, r: l / r,
                 # low dhigh minus high dlow, square the bottom and away we go
-                return (
-                    _left / _right,
-                    (_right * _dleft - _left * _dright) / (_right**2),
-                )
-            case "^":
-                return (
-                    _left**_right,
-                    _left**_right
-                    * (_dleft * (_right / _left) + _dright * np.log(_left)),
-                )
-            case "u-":
-                return (-_right, -_dright)
-            case "sin":
-                return (np.sin(_right), np.cos(_right) * _dright)
-            case "sind":
-                return (
-                    np.sin(_right * np.pi / 180),
-                    np.cos(_right * np.pi / 180) * (_dright * np.pi / 180),
-                )
-            case "cos":
-                return (np.cos(_right), -np.sin(_right) * _dright)
-            case "cosd":
-                return (
-                    np.cos(_right * np.pi / 180),
-                    -np.sin(_right * np.pi / 180) * (_dright * np.pi / 180),
-                )
-            case "tan":
-                return (
-                    np.tan(_right),
-                    ((4 * np.cos(_right) ** 2) / (np.cos(2 * _right) + 1) ** 2)
-                    * _dright,
-                )
-            case "tand":
-                _rd = _right * np.pi / 180
-                _drd = _dright * np.pi / 180
-                return (
-                    np.tan(_rd),
-                    ((4 * np.cos(_rd) ** 2) / (np.cos(2 * _rd) + 1) ** 2) * _drd,
-                )
-            case _:
-                raise ValueError(
-                    f"Error computing '{node.key}' when evaluating derivative, operation not defined."
-                )
+                lambda l, r, dl, dr: (l / r, (r * dl - l * dr) / (r**2)),
+            ),
+            "^": (
+                lambda l, r: l**r,
+                lambda l, r, dl, dr: (l**r, l**r * (dl * (r / l) + dr * np.log(l))),
+            ),
+            "u-": (lambda _, r: -r, lambda _, r, __, dr: (-r, -dr)),
+            "sin": (
+                lambda _, r: StackDim.sin(r),
+                lambda _, r, __, dr: (np.sin(r), np.cos(r) * dr),
+            ),
+            "sind": (
+                lambda _, r: StackDim.sind(r),
+                lambda _, r, __, dr: (
+                    np.sin(r * np.pi / 180),
+                    np.cos(r * np.pi / 180) * (dr * np.pi / 180),
+                ),
+            ),
+            "cos": (
+                lambda _, r: StackDim.cos(r),
+                lambda _, r, __, dr: (np.cos(r), -np.sin(r) * dr),
+            ),
+            "cosd": (
+                lambda _, r: StackDim.cosd(r),
+                lambda _, r, __, dr: (
+                    np.cos(r * np.pi / 180),
+                    -np.sin(r * np.pi / 180) * (dr * np.pi / 180),
+                ),
+            ),
+            "tan": (
+                lambda _, r: StackDim.tan(r),
+                lambda _, r, __, dr: (
+                    np.tan(r),
+                    ((4 * np.cos(r) ** 2) / (np.cos(2 * r) + 1) ** 2) * dr,
+                ),
+            ),
+            "tand": (
+                lambda _, r: StackDim.tand(r),
+                lambda _, r, __, dr: (
+                    np.tan(r * np.pi / 180),
+                    (
+                        (4 * np.cos(r * np.pi / 180) ** 2)
+                        / (np.cos(2 * r * np.pi / 180) + 1) ** 2
+                    )
+                    * (dr * np.pi / 180),
+                ),
+            ),
+        }
 
-    def _evaluate_ideal(self, node, key):
-        # base case, node refers to a StackDim input variable or scalar
-        if node.left is None and node.right is None:
-            value = self._getLeafValue(node.key)
-
-            if not isinstance(value, StackDim):
-                # scalars always ideal
-                return value
-
-            if key != value.key:
-                return value
+        try:
+            operation, derivative_operation = operations[op]
+            if dleft is not None and dright is not None:
+                return derivative_operation(left, right, dleft, dright)
             else:
-                return value.ideal(self.method)
-
-        _left = self._evaluate_ideal(node.left, key) if node.left else None
-        _right = self._evaluate_ideal(node.right, key) if node.right else None
-
-        match node.key:
-            case "+":
-                return _left + _right
-            case "-":
-                return _left - _right
-            case "*":
-                return _left * _right
-            case "/":
-                return _left / _right
-            case "^":
-                return _left**_right
-            case "u-":
-                return -_right
-            case "sin":
-                return StackDim.sin(_right)
-            case "sind":
-                return StackDim.sind(_right)
-            case "cos":
-                return StackDim.cos(_right)
-            case "cosd":
-                return StackDim.cosd(_right)
-            case "tan":
-                return StackDim.tan(_right)
-            case "tand":
-                return StackDim.tand(_right)
-            case _:
-                raise ValueError(
-                    f"Error computing '{node.key}' when evaluating contribution, operation not defined."
-                )
+                return operation(left, right)
+        except KeyError:
+            raise ValueError(
+                f"Error computing '{op}' when evaluating expression, operation not defined."
+            )
 
     def _format_tree(self, node):
         if (
@@ -314,9 +282,14 @@ class StackExpr:
 
         return _left | _right
 
-    def _getLeafValue(self, key):
+    def _getLeafValue(self, key, ideal_key=None):
         if key in self.value_map:
-            return self.value_map[key]
+            value = self.value_map[key]
+            if not isinstance(value, StackDim):
+                return value
+            if ideal_key and ideal_key == key:
+                return value.ideal(self.method)
+            return value
 
         if is_numeric_string(key):
             return parse_string_to_numeric(key)

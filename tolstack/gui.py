@@ -37,6 +37,8 @@ import re
 
 from enum import Enum
 
+from tolstack.AppConfig import AppConfig
+
 
 class InsertPosition(Enum):
     ADD = 1
@@ -338,7 +340,7 @@ class MainWindow(QMainWindow):
     WINDOW_HEIGHT = 800
 
     SAVE_FILE = None
-    CONTENTS_AT_SAVE = None
+    CONTENTS_AT_SAVE = [[], [], []]
 
     def __init__(self):
         super().__init__()
@@ -833,6 +835,10 @@ class MainWindow(QMainWindow):
     def save_inputs_to_name(self, file_name):
         if file_name:
             with open(file_name, "w", encoding="utf-8") as file:
+                file.write(
+                    f"*VERSIONINFO, {AppConfig.app_version}, {AppConfig.file_format_version}"
+                    + "\n",
+                )
                 file.write("*CONSTANTS, VALUE, NOTE" + "\n")
                 for row_data in self.constants_widget.get_all_data():
                     file.write(",".join(row_data) + "\n")
@@ -865,6 +871,12 @@ class MainWindow(QMainWindow):
         ]
 
     def open_file(self):
+        if self.has_unsaved_changes():
+            proceed = self.ask_to_save()
+
+            if not proceed:
+                return
+
         options = QFileDialog.Options()
         self.SAVE_FILE, _ = QFileDialog.getOpenFileName(
             self, "Open File", "", "All Files (*);;Text Files (*.txt)", options=options
@@ -902,6 +914,8 @@ class MainWindow(QMainWindow):
                             current_widget.insert_row(InsertPosition.ADD, data)
                 self.store_state_at_save()
 
+                self.text_edit.setText("")
+
     def save_outputs(self):
         options = QFileDialog.Options()
         file_name, _ = QFileDialog.getSaveFileName(
@@ -934,10 +948,10 @@ class MainWindow(QMainWindow):
 
     def display_help(self):
         try:
-            with open("tolstack/help.md", "r") as file:
+            with open("tolstack/content/help.md", "r", encoding="utf-8") as file:
                 md_content = file.read()
 
-            html_content = markdown.markdown(md_content)
+            html_content = markdown.markdown(md_content, extensions=["extra"])
 
             # Create a custom dialog
             dialog = QDialog(self)
@@ -974,7 +988,7 @@ class MainWindow(QMainWindow):
 
         text = (
             "<h3>tolstack</h3>"
-            "<p>Version: 0.4.0<br>"
+            f"<p>Version: {AppConfig.app_version}<br>"
             "Author: S.A. Suresh (lemon1324)<br>"
             "License: MIT</p>"
             "<p>This application is licensed under the MIT License.</p>"

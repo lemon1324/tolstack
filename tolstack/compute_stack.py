@@ -10,6 +10,7 @@ from tolstack.StackFormat import (
     format_dimension,
     format_dimension_header,
     format_usage,
+    format_expression_summary,
     format_expression,
     format_sensitivity,
     format_contribution,
@@ -42,6 +43,12 @@ def _process_stack_parser(
         print_lines.append("\n")
 
     if SP.expressions:
+        print_lines.append("EXPRESSION SUMMARY:")
+        for key, SE in SP.expressions.items():
+            print_lines.append(format_expression_summary(SE))
+
+        print_lines.append('\n')
+
         print_lines.append("EXPRESSIONS:")
         for key, SE in SP.expressions.items():
             print_lines.append(format_expression(SE))

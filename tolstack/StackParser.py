@@ -46,6 +46,8 @@ class StackParser:
 
     def _handle_category(self, line):
         match self.category:
+            case "versioninfo":
+                pass
             case "constants":
                 self._handle_constants(line)
             case "dimensions":

@@ -9,12 +9,16 @@
 - Implements addition, subtraction, multiplication, division, and exponentiation.
 - Expression parser also handles parentheses and unary negation.
 - Expressions can be evaluated in either worst-case or statistical modes against lower and/or upper bounds.
--
+- Supports sensitivity analysis for nominal values, and contribution analysis for tolerances.
 
 ## Using the Application
 
-1. Step-by-step instructions on how to use the application.
-2. Additional information.
+The general workflow is as follows:
+1. Define any constants for the problem. These are all untoleranced values.
+2. Define dimensions for the problem. These are the toleranced values for the problem (and may not actually be a 'dimension').
+3. 
+
+### Subhead
 
 ## FAQ
 

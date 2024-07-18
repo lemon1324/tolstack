@@ -6,6 +6,9 @@ from tolstack.StackUtils import word_wrap
 
 from math import isinf, isclose
 
+from decimal import Decimal
+import re
+
 FORMAT_WIDTH = 80
 
 
@@ -15,20 +18,22 @@ def format_constant_header():
 
 def format_constant(C: StackDim):
     return word_wrap(
-        f"{C.key:>10}{C.nom:>10.4g}  {C.note if C.note else ''}", FORMAT_WIDTH, 22
+        f"{C.key:>10}{format_shortest(C.nom, 4):>10}  {C.note if C.note else ''}",
+        FORMAT_WIDTH,
+        22,
     )
 
 
 def format_dimension_header():
-    return f"{'ID':>10}{'NOMINAL':>10}{'PLUS':>8}{'MINUS':>8}{'D':>4}{'PN':>12}  NOTE"
+    return f"{'ID':>10}{'NOMINAL':>9}{'PLUS':>9}{'MINUS':>9}{'D':>4}{'PN':>12}  NOTE"
 
 
 def format_dimension(D: StackDim):
     return word_wrap(
-        f"{D.key:>10}{D.nom:10.4g}{D.plus:+8.4g}{D.minus:+8.4g}"
+        f"{D.key:>10}{format_shortest(D.nom,3):>9}{format_shortest(D.plus,3):>9}{format_shortest(D.minus,3):>9}"
         + f"{get_code_from_dist(D.disttype):>4}{D.PN if D.PN else '':>12}  {D.note if D.note else ''}",
         FORMAT_WIDTH,
-        54,
+        55,
     )
 
 
@@ -43,6 +48,13 @@ def format_usage(K: StackDim, usage):
     return ""
 
 
+def format_expression_summary(E: StackExpr):
+    lines = []
+    lines.append(word_wrap(f"{E.key:>5}: {E.note}", FORMAT_WIDTH, 7))
+
+    return "\n".join(lines)
+
+
 def format_expression(E: StackExpr):
     lines = []
     lines.append(word_wrap(f"{E.key:>5}: {E.note}", FORMAT_WIDTH, 7))
@@ -50,21 +62,21 @@ def format_expression(E: StackExpr):
         word_wrap(
             f"{7*' '}Expression: {E.expr}",
             FORMAT_WIDTH,
-            47,
+            19,
         )
     )
     lines.append(
         word_wrap(
             f"{7*' '}Expansion:  {E.expand()}",
             FORMAT_WIDTH,
-            47,
+            19,
         )
     )
     lines.append(f"{7*' '}Evaluation: {E.method}")
     _val = E.evaluate()
-    lines.append(f"{7*' '}Nominal: {_val.nom:15.4g}")
+    lines.append(f"{7*' '}Nominal: {format_shortest(_val.nom,3):>15}")
     lines.append(
-        f"{7*' '}Value:   {_val.center(E.method):15.4g} {_val.upper_tol(E.method):+.4g} {_val.lower_tol(E.method):+.4g}"
+        f"{7*' '}Value:   {format_shortest(_val.center(E.method),3):>15} {format_shortest(_val.upper_tol(E.method),2)} {format_shortest(_val.lower_tol(E.method),2)}"
     )
 
     if not isinf(E.lower):
@@ -72,7 +84,7 @@ def format_expression(E: StackExpr):
             E.lower, _val.lower(E.method), abs_tol=1e-9
         )
         lines.append(
-            f"{'' if _pass else '***':<9}Lower Bound:{E.lower:10.4g}  {'PASS' if _pass else f'FAIL: {_val.lower(E.method):.4g}'}"
+            f"{'' if _pass else '***':<9}Lower Bound:{E.lower:10.4g}  {'PASS' if _pass else f'FAIL: {format_shortest(_val.lower(E.method),3)}'}"
         )
     else:
         lines.append(f"{9*' '}Lower Bound:{'NONE':>10}  PASS")
@@ -82,7 +94,7 @@ def format_expression(E: StackExpr):
             E.upper, _val.upper(E.method), abs_tol=1e-9
         )
         lines.append(
-            f"{'' if _pass else '***':<9}Upper Bound:{E.upper:10.4g}  {'PASS' if _pass else f'FAIL: {_val.upper(E.method):.4g}'}"
+            f"{'' if _pass else '***':<9}Upper Bound:{E.upper:10.4g}  {'PASS' if _pass else f'FAIL: {format_shortest(_val.upper(E.method),3)}'}"
         )
     else:
         lines.append(f"{9*' '}Upper Bound:{'NONE':>10}  PASS")
@@ -104,7 +116,7 @@ def format_sensitivity(E: StackExpr, sensitivities):
 
     for var, partial in sensitivities.items():
         lines.append(
-            f"{'∂/∂'+var:>16}: {partial:10.2g} {format_center_bar(partial/scale)}"
+            f"{'∂/∂'+var:>16}: {format_shortest(partial,2):>10} {format_center_bar(partial/scale)}"
         )
 
     return "\n".join(lines)
@@ -123,7 +135,9 @@ def format_contribution(E: StackExpr, contributions):
         scale = 1
 
     for var, tol in contributions.items():
-        lines.append(f"{var:>16}: {f'±{tol:.3g}'.rjust(10)} {format_bar(tol/scale)}")
+        lines.append(
+            f"{var:>16}: {f'±{format_shortest(tol,2)[1:]}'.rjust(10)} {format_bar(tol/scale)}"
+        )
 
     return "\n".join(lines)
 
@@ -156,9 +170,103 @@ def format_center_bar(number, width=19) -> str:
     return f"[{''.join(bar)}]"
 
 
-if __name__ == "__main__":
-    for n in [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1]:
-        print(format_center_bar(n, 6))
+# format to a certain number of significant figures, either scientific or normal, whichever is shorter
+def format_shortest(num, sig_figs, leading_zeroes=False):
+    scientific = format_scientific(num, sig_figs - 1, 1)
+    decimal = format_significant_figures(num, sig_figs, leading_zeroes)
 
-    for n in [0, 0.25, 0.5, 0.75, 1]:
-        print(format_bar(n, 9))
+    return scientific if len(scientific) < len(decimal) else decimal
+
+
+# Custom formatting to control the number of digits in the exponent
+def format_scientific(num, precision=4, exp_digits=2):
+    formatted = f"{num:+.{precision}e}"
+    parts = formatted.split("e")
+    exponent = int(parts[1])
+    sign = "+" if exponent >= 0 else "-"
+    fmt_exponent = f"e{sign}{abs(exponent):0{exp_digits}d}"
+    return parts[0] + fmt_exponent
+
+
+# Custom formatting to "actually" print to a set number of sig figs
+# There doesn't seem to be a better way to actually do sig figs?
+# Apparently to get it right I have to actually process it as a decimal >_>
+def format_significant_figures(num, sig_figs, leading_zeros=False):
+    # convert to string
+    num_str = f"{num:+.{2*sig_figs}f}"
+
+    # remove and store sign symbol
+    sign = ""
+    if num_str[0] in "+-":
+        sign = num_str[0]
+        num_str = num_str[1:]
+
+    # split into integer and fractional parts
+    if "." in num_str:
+        int_part, frac_part = num_str.split(".")
+    else:
+        int_part, frac_part = (num_str, "")
+
+    # Remove leading zeros in integer part
+    int_part = int_part.lstrip("0")
+    int_len = len(int_part)
+    frac_len = len(frac_part)
+
+    # Combine into one continuous number for ease of counting significant figures
+    combined = int_part + frac_part
+
+    if int_len > 0:
+        # Truncate to required significant figures
+        truncated_combined = round_string(combined, sig_figs)
+
+        # place the decimal point correctly
+        if sig_figs < int_len:
+            result = f"{sign}{truncated_combined}{'0' * (int_len-sig_figs)}"
+        else:
+            result = (
+                f"{sign}{truncated_combined[:int_len]}.{truncated_combined[int_len:]}"
+            )
+    else:  # magnitude less than one
+        lead = "0" if leading_zeros else ""
+
+        match = re.search(r"[1-9]", combined)
+        if not match:
+            # number is apparently zero, so return that many places after the decimal
+            result = f"{sign}{lead}.{'0'*sig_figs}"
+        else:
+            first_digit = match.start()
+            pad = (
+                "0" * ((first_digit + sig_figs) - frac_len)
+                if first_digit + sig_figs > frac_len
+                else ""
+            )
+
+            result = f"{sign}{lead}.{frac_part[:first_digit+sig_figs]}{pad}"
+
+    return result
+
+
+def round_string(num_str, digits):
+    if len(num_str) <= digits:
+        return num_str
+
+    # Determine if rounding is needed
+    if num_str[digits] in "56789":
+        # Increment the last character before the cut if it's not '9'
+        if num_str[digits - 1] != "9":
+            rounded_char = chr(ord(num_str[digits - 1]) + 1)
+            return num_str[: digits - 1] + rounded_char
+        else:
+            # Rounding '9' needs handling differently
+            result = list(num_str[:digits])
+            i = digits - 1
+            while i >= 0 and result[i] == "9":
+                result[i] = "0"
+                i -= 1
+            if i >= 0:
+                result[i] = chr(ord(result[i]) + 1)
+            else:
+                result.insert(0, "1")
+            return "".join(result)
+    else:
+        return num_str[:digits]
