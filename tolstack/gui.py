@@ -35,6 +35,8 @@ import markdown
 
 import re
 
+import os
+
 from enum import Enum
 
 from tolstack.AppConfig import AppConfig
@@ -355,7 +357,9 @@ class MainWindow(QMainWindow):
         # Layouts
         main_layout = QHBoxLayout()
 
-        splitter = QSplitter(Qt.Horizontal)  # This will allow resizing horizontally
+        self.main_splitter = QSplitter(
+            Qt.Horizontal
+        )  # This will allow resizing horizontally
 
         # Splitter for left layout
         left_splitter = QSplitter(Qt.Vertical)
@@ -506,14 +510,14 @@ class MainWindow(QMainWindow):
         right_widget = QWidget()
         right_widget.setLayout(right_layout)
 
-        splitter.addWidget(left_widget)
-        splitter.addWidget(right_widget)
+        self.main_splitter.addWidget(left_widget)
+        self.main_splitter.addWidget(right_widget)
 
         left_size = self.WINDOW_WIDTH - text_edit_width
-        right_size = text_edit_width
-        splitter.setSizes([left_size, right_size])
+        self.output_column_width = text_edit_width
+        self.main_splitter.setSizes([left_size, self.output_column_width])
 
-        main_layout.addWidget(splitter)
+        main_layout.addWidget(self.main_splitter)
         central_widget.setLayout(main_layout)
 
         # Create Menu Bar
@@ -618,6 +622,9 @@ class MainWindow(QMainWindow):
         expressions_shortcut = QShortcut(QKeySequence("Ctrl+Shift+3"), self)
         expressions_shortcut.activated.connect(self.switch_focus_to_expressions)
 
+        rename_shortcut = QShortcut(QKeySequence(Qt.Key_F2), self)
+        rename_shortcut.activated.connect(lambda: self.rename_item(use_focused=True))
+
         # Intercept window close to prompt for save
         self.setAttribute(Qt.WA_DeleteOnClose, True)
         self.closeEvent = self.on_close_event
@@ -695,7 +702,7 @@ class MainWindow(QMainWindow):
 
         self.statusBar().showMessage("New analysis", 1500)
 
-    def rename_item(self):
+    def rename_item(self, selected_item=None, use_focused=False):
         dialog = QDialog(self)
         dialog.setWindowTitle("Rename Item")
 
@@ -703,6 +710,7 @@ class MainWindow(QMainWindow):
 
         old_name_label = QLabel("Enter old name:")
         old_name_input = QLineEdit()
+
         layout.addWidget(old_name_label)
         layout.addWidget(old_name_input)
 
@@ -762,6 +770,22 @@ class MainWindow(QMainWindow):
 
         ok_button.clicked.connect(on_ok_clicked)
         cancel_button.clicked.connect(dialog.reject)
+
+        # pre-populate entries if operating in that mode
+        if selected_item:  # called with a specific item to rename
+            original_item = selected_item
+        elif use_focused:
+            original_item = (
+                self.constants_widget.currentItem()
+                or self.dimensions_widget.currentItem()
+            )
+        if original_item:
+            row = original_item.row()
+            widget = original_item.tableWidget()
+            original_item = widget.item(row, 0)
+            old_name_input.setText(original_item.text())
+
+            new_name_input.setFocus()  # place cursor in logcal spot when pre-filling
 
         if dialog.exec_() == QDialog.Accepted:
             old_name = old_name_input.text().strip()
@@ -948,7 +972,7 @@ class MainWindow(QMainWindow):
 
     def display_help(self):
         try:
-            with open("tolstack/content/help.md", "r", encoding="utf-8") as file:
+            with open(AppConfig.path_to_help, "r", encoding="utf-8") as file:
                 md_content = file.read()
 
             html_content = markdown.markdown(md_content, extensions=["extra"])
@@ -979,6 +1003,7 @@ class MainWindow(QMainWindow):
             error_msg_box.setIcon(QMessageBox.Critical)
             error_msg_box.setWindowTitle("Error")
             error_msg_box.setText(f"Error loading help content:\n{e}")
+            error_msg_box.setInformativeText("\n".join(os.listdir(".")))
             error_msg_box.exec_()
 
     def display_about(self):
@@ -1017,6 +1042,15 @@ class MainWindow(QMainWindow):
     def switch_focus_to_expressions(self):
         self.expressions_widget.setFocus()
         self.expressions_widget.setCurrentCell(0, 0, QItemSelectionModel.ClearAndSelect)
+
+    def keep_output_panel_width_fixed(self):
+        left_size = self.width() - self.output_column_width
+        right_size = self.output_column_width
+        self.main_splitter.setSizes([left_size, right_size])
+
+    def resizeEvent(self, event):
+        self.keep_output_panel_width_fixed()
+        super().resizeEvent(event)
 
     def on_close_event(self, event):
         if self.has_unsaved_changes():

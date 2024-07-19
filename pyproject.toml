@@ -15,6 +15,7 @@ markdown = "^3.6"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.4"
+pytest = "^8.2.2"
 
 [build-system]
 requires = ["poetry-core"]
@@ -22,7 +23,8 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry-pyinstaller-plugin.scripts]
 tolstack = { source = "tolstack/main.py", type = "onedir", windowed = true, bundle = false}
-tolstack-cli = { source = "tolstack/compute_stack.py", type = "onedir", bundle = false}
+# tolstack-cli = { source = "tolstack/compute_stack.py", type = "onedir", bundle = false}
 
 [tool.poetry-pyinstaller-plugin.collect]
 submodules = ['numpy.f2py', 'scipy._lib.array_api_compat', 'scipy.special']
+all = ['tolstack']

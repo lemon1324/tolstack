@@ -108,29 +108,6 @@ class StackExpr:
 
         return self._apply_operation(node.key, _left, _right)
 
-    def _apply_operation(self, op, left, right):
-        operations = {
-            "+": lambda l, r: l + r,
-            "-": lambda l, r: l - r,
-            "*": lambda l, r: l * r,
-            "/": lambda l, r: l / r,
-            "^": lambda l, r: l**r,
-            "u-": lambda _, r: -r,
-            "sin": lambda _, r: StackDim.sin(r),
-            "cos": lambda _, r: StackDim.cos(r),
-            "tan": lambda _, r: StackDim.tan(r),
-            "sind": lambda _, r: StackDim.sind(r),
-            "cosd": lambda _, r: StackDim.cosd(r),
-            "tand": lambda _, r: StackDim.tand(r),
-        }
-
-        try:
-            return operations[op](left, right)
-        except KeyError:
-            raise ValueError(
-                f"Error computing '{op}' when evaluating expression, operation not defined."
-            )
-
     def _evaluateDerivative(self, node, key) -> tuple[float, float]:
         # base case, node refers to a StackDim input variable or scalar
         if node.left is None and node.right is None:

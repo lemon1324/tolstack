@@ -79,25 +79,26 @@ def format_expression(E: StackExpr):
         f"{7*' '}Value:   {format_shortest(_val.center(E.method),3):>15} {format_shortest(_val.upper_tol(E.method),2)} {format_shortest(_val.lower_tol(E.method),2)}"
     )
 
-    if not isinf(E.lower):
-        _pass = E.lower <= _val.lower(E.method) or isclose(
-            E.lower, _val.lower(E.method), abs_tol=1e-9
-        )
-        lines.append(
-            f"{'' if _pass else '***':<9}Lower Bound:{E.lower:10.4g}  {'PASS' if _pass else f'FAIL: {format_shortest(_val.lower(E.method),3)}'}"
-        )
-    else:
-        lines.append(f"{9*' '}Lower Bound:{'NONE':>10}  PASS")
+    if not isinf(E.lower) and not isinf(E.upper):
+        if not isinf(E.lower):
+            _pass = E.lower <= _val.lower(E.method) or isclose(
+                E.lower, _val.lower(E.method), abs_tol=1e-9
+            )
+            lines.append(
+                f"{'' if _pass else '***':<9}Lower Bound:{E.lower:10.4g}  {'PASS' if _pass else f'FAIL: {format_shortest(_val.lower(E.method),3)}'}"
+            )
+        else:
+            lines.append(f"{9*' '}Lower Bound:{'NONE':>10}  PASS")
 
-    if not isinf(E.upper):
-        _pass = E.upper >= _val.upper(E.method) or isclose(
-            E.upper, _val.upper(E.method), abs_tol=1e-9
-        )
-        lines.append(
-            f"{'' if _pass else '***':<9}Upper Bound:{E.upper:10.4g}  {'PASS' if _pass else f'FAIL: {format_shortest(_val.upper(E.method),3)}'}"
-        )
-    else:
-        lines.append(f"{9*' '}Upper Bound:{'NONE':>10}  PASS")
+        if not isinf(E.upper):
+            _pass = E.upper >= _val.upper(E.method) or isclose(
+                E.upper, _val.upper(E.method), abs_tol=1e-9
+            )
+            lines.append(
+                f"{'' if _pass else '***':<9}Upper Bound:{E.upper:10.4g}  {'PASS' if _pass else f'FAIL: {format_shortest(_val.upper(E.method),3)}'}"
+            )
+        else:
+            lines.append(f"{9*' '}Upper Bound:{'NONE':>10}  PASS")
 
     return "\n".join(lines)
 
