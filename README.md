@@ -29,7 +29,7 @@ The general workflow is as follows:
    - **Minus:** The minus tolerance such that `nominal+minus` is the lower bound of this dimension. May be positive for unilateral bias tolerancing. **Note the sign convention.** Minus tolerances for a symmetrically toleranced value should have a '-' sign in this field.
    - **D:** Distribution of this dimension. Default is uniform; other options are:
      - **U:** uniform distribution between `nominal+minus` and `nominal+plus`.
-     - **1S, 2S, 3S:** normal distribution such that `μ=nominal+(plus+minus)/2`&mdash;that is, the mean is the midpoint between the extremes, _not_ the nominal value. The standard deviation is set such that `σ = (plus-minus)/2k` where `k={1,2,3}`. Note that the distribution code is the number of one-sided standard distributions.
+     - **1S, 2S, 3S:** normal distribution such that `μ=nominal+(plus+minus)/2`&mdash;that is, the mean is the midpoint between the extremes, _not_ the nominal value. The standard deviation is set such that `σ = (plus-minus)/2k` where `k={1,2,3}`. Note that the distribution code is the number of one-sided standard deviations.
    - **PN:** The part number this dimension is associated to. Should be no more than 9 characters.
    - **Note:** Arbitrary Unicode text for documentation.
 

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tolstack"
-version = "0.6.0"
+version = "0.6.1"
 description = ""
 authors = ["lemon1324 <lemon1324@gmail.com>"]
 readme = "README.md"
@@ -12,6 +12,8 @@ scipy = ">=1.10"
 pyqt5 = "=5.15.10"   
 pyqt5-qt5 = "=5.15.2"
 markdown = "^3.6"
+matplotlib = "^3.9.1"
+reportlab = "^4.2.2"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.4"

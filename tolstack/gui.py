@@ -5,27 +5,23 @@ from PyQt5.QtWidgets import (
     QCheckBox,
     QDialog,
     QFileDialog,
-    QHeaderView,
     QLabel,
     QMainWindow,
-    QMenu,
+    QTabWidget,
     QMessageBox,
     QPushButton,
     QShortcut,
     QSizePolicy,
     QSplitter,
-    QTableWidget,
-    QTableWidgetItem,
     QLineEdit,
     QTextEdit,
     QVBoxLayout,
     QHBoxLayout,
     QWidget,
-    QAbstractItemView,
 )
-from PyQt5.QtCore import Qt, QItemSelectionModel, QPoint
+from PyQt5.QtCore import Qt, QItemSelectionModel
 
-from PyQt5.QtGui import QFont, QKeySequence, QFontMetrics
+from PyQt5.QtGui import QFont, QKeySequence
 
 from tolstack.compute_stack import process_data
 
@@ -37,304 +33,14 @@ import re
 
 import os
 
-from enum import Enum
-
 from tolstack.AppConfig import AppConfig
+from tolstack.GUIWidgets import *
 
 
-class InsertPosition(Enum):
-    ADD = 1
-    ABOVE = 2
-    BELOW = 3
-
-
-class EditableTableWidget(QTableWidget):
-    def __init__(self, rows, columns, parent=None):
-        super().__init__(rows, columns, parent)
-
-        self.DEFAULT_DATA = [""] * columns
-        self.ITEM_NAME = "item"
-        self.WORD_WRAP = False
-
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.customContextMenuRequested.connect(self.show_context_menu)
-
-    def show_context_menu(self, pos: QPoint):
-        index = self.indexAt(pos)
-        if not index.isValid():
-            return
-
-        row = index.row()
-
-        # Create the context menu
-        context_menu = QMenu(self)
-
-        # Create actions for inserting rows
-        insert_above_action = QAction(f"Insert {self.ITEM_NAME} above", self)
-        insert_below_action = QAction(f"Insert {self.ITEM_NAME} below", self)
-
-        # Connect the actions to slots
-        insert_above_action.triggered.connect(
-            lambda: self.insert_row(
-                position=InsertPosition.ABOVE, target_row=row, select_after=True
-            )
-        )
-        insert_below_action.triggered.connect(
-            lambda: self.insert_row(
-                position=InsertPosition.BELOW, target_row=row, select_after=True
-            )
-        )
-
-        # Add actions to the context menu
-        context_menu.addAction(insert_above_action)
-        context_menu.addAction(insert_below_action)
-
-        # Add separator
-        context_menu.addSeparator()
-
-        # Create actions for moving rows up and down
-        move_to_top_action = QAction("Move to top", self)
-        move_up_action = QAction("Move up", self)
-        move_down_action = QAction("Move down", self)
-        move_to_bottom_action = QAction("Move to bottom", self)
-
-        # Connect the actions to slots
-        move_to_top_action.triggered.connect(lambda: self.move_row(row, 0))
-        move_up_action.triggered.connect(lambda: self.move_row(row, row - 1))
-        move_down_action.triggered.connect(lambda: self.move_row(row, row + 1))
-        move_to_bottom_action.triggered.connect(
-            lambda: self.move_row(row, self.rowCount() - 1)
-        )
-
-        # Add actions to the context menu
-        context_menu.addAction(move_to_top_action)
-        context_menu.addAction(move_up_action)
-        context_menu.addAction(move_down_action)
-        context_menu.addAction(move_to_bottom_action)
-
-        # Show the context menu at the cursor position
-        context_menu.exec_(self.viewport().mapToGlobal(pos))
-
-    def insert_row(
-        self,
-        position: InsertPosition = InsertPosition.ADD,
-        data=None,
-        target_row=-1,
-        select_after=False,
-    ):
-        if data is None:
-            data = self.DEFAULT_DATA
-
-        # If the table is empty, always insert at position 0
-        if self.rowCount() == 0:
-            row_position = 0
-            self.insertRow(row_position)
-        else:
-            if target_row == -1:
-                target_row = self.currentRow()
-
-            row_position = None  # Initialize row_position to None
-
-            match position:
-                case InsertPosition.ADD:
-                    row_position = self.rowCount()
-                    self.insertRow(row_position)
-                case InsertPosition.ABOVE:
-                    if target_row != -1:
-                        self.insertRow(target_row)
-                        row_position = target_row
-                    else:
-                        return  # No row selected
-                case InsertPosition.BELOW:
-                    if target_row != -1:
-                        self.insertRow(target_row + 1)
-                        row_position = target_row + 1
-                    else:
-                        return  # No row selected
-                case _:
-                    raise ValueError(f"Invalid position: {position}")
-
-        self._set_row_data(row_position, data)
-        if select_after:
-            if self.rowCount() > 0:
-                self.setCurrentCell(row_position, 0)
-                self.editItem(self.item(row_position, 0))
-
-        return row_position
-
-    def move_row(self, source_row: int, target_row: int):
-        if (
-            source_row == target_row
-            or source_row < 0
-            or target_row < 0
-            or source_row >= self.rowCount()
-            or target_row >= self.rowCount()
-        ):
-            return  # Invalid parameters or no movement needed
-
-        # Get data from the source row
-        source_data = [
-            self.item(source_row, col).text() if self.item(source_row, col) else ""
-            for col in range(self.columnCount())
-        ]
-
-        self.insert_row(
-            position=(
-                InsertPosition.BELOW
-                if target_row > source_row
-                else InsertPosition.ABOVE
-            ),
-            data=source_data,
-            target_row=target_row,
-        )
-
-        # Remove the original row (adjust the index if necessary)
-        self.removeRow(source_row if target_row > source_row else source_row + 1)
-
-    def _set_row_data(self, row_position, data):
-        for column, item in enumerate(data):
-            if column < self.columnCount():  # Ensure we don't exceed the column count
-                table_item = QTableWidgetItem(str(item))
-                self.setItem(row_position, column, table_item)
-                self.item(row_position, column).setFlags(
-                    Qt.ItemIsSelectable | Qt.ItemIsEditable | Qt.ItemIsEnabled
-                )
-
-                # Enable word wrapping for the last column if set
-                if column == self.columnCount() - 1 and self.WORD_WRAP:
-                    table_item.setTextAlignment(Qt.AlignLeft | Qt.AlignTop)
-                    self._adjustRowHeight(row_position)
-
-    def _adjustRowHeight(self, row_position):
-        max_height = 0
-        for column in range(self.columnCount()):
-            table_item = self.item(row_position, column)
-            if table_item is not None:
-                text = table_item.text()
-                font_metrics = QFontMetrics(table_item.font())
-                rect = font_metrics.boundingRect(
-                    0, 0, self.columnWidth(column), 0, Qt.TextWordWrap, text
-                )
-                max_height = max(max_height, rect.height())
-
-        self.setRowHeight(row_position, max_height)
-
-    def has_key(self, key: str) -> bool:
-        """
-        Check if any cell in the first column contains the exact string 'key'.
-        :param key: The string to search for.
-        :return: True if found, False otherwise.
-        """
-        for row in range(self.rowCount()):
-            item = self.item(row, 0)
-            if item and item.text() == key:
-                return True
-        return False
-
-    def get_all_data(self):
-        data_list = []
-        for row in range(self.rowCount()):
-            row_data = []
-            for column in range(self.columnCount()):
-                item = self.item(row, column)
-                row_data.append(item.text().strip() if item else "")
-            data_list.append(row_data)
-        return data_list
-
-    def clear_all_data(self):
-        self.setRowCount(0)
-
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Delete:
-            for item in self.selectedItems():
-                item.setText("")
-        elif event.key() == Qt.Key_Enter or event.key() == Qt.Key_Return:
-            selected_items = self.selectedItems()
-            if selected_items:
-                first_selected_item = selected_items[0]
-                if self.state() != QAbstractItemView.EditingState:
-                    self.editItem(first_selected_item)
-        else:
-            super().keyPressEvent(event)
-
-
-class EditableConstantWidget(EditableTableWidget):
-    def __init__(self, parent=None):
-        super().__init__(0, 3, parent)
-
-        self.DEFAULT_DATA = ["Cxx", 0.0, "-"]
-        self.ITEM_NAME = "constant"
-
-        self.setHorizontalHeaderLabels(["Name", "Value", "Note"])
-        self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.horizontalHeader().setSectionResizeMode(
-            self.columnCount() - 1, QHeaderView.Stretch
-        )
-
-        # Set default column sizes
-        default_column_widths = [50, 55, 420]
-        for column, width in enumerate(default_column_widths):
-            self.setColumnWidth(column, width)
-
-
-class EditableDimensionWidget(EditableTableWidget):
-    def __init__(self, parent=None):
-        super().__init__(0, 7, parent)
-
-        self.DEFAULT_DATA = ["Dxx", 0.0, 0.0, 0.0, "U", "-", "-"]
-        self.ITEM_NAME = "dimension"
-
-        self.setHorizontalHeaderLabels(
-            ["Name", "Nominal", "Plus", "Minus", "D", "PN", "Note"]
-        )
-        self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.horizontalHeader().setSectionResizeMode(
-            self.columnCount() - 1, QHeaderView.Stretch
-        )
-
-        # Set default column sizes
-        default_column_widths = [50, 55, 55, 55, 10, 65, 210]
-        for column, width in enumerate(default_column_widths):
-            self.setColumnWidth(column, width)
-
-
-class EditableExpressionWidget(EditableTableWidget):
-    def __init__(self, parent=None):
-        super().__init__(0, 6, parent)
-
-        self.DEFAULT_DATA = ["Exx", "-", "", "", "W", "-"]
-        self.ITEM_NAME = "expression"
-
-        self.setHorizontalHeaderLabels(["Name", "Value", "Lower", "Upper", "M", "Note"])
-        self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.horizontalHeader().setSectionResizeMode(
-            self.columnCount() - 1, QHeaderView.Stretch
-        )
-
-        # Set default column sizes
-        default_column_widths = [50, 55, 55, 55, 10, 275]
-        for column, width in enumerate(default_column_widths):
-            self.setColumnWidth(column, width)
-
-
-class EmWidthTextEdit(QTextEdit):
-    def __init__(self, font, em_width, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.setFont(font)
-        self.setEmWidth(em_width)
-
-    def setEmWidth(self, em_width):
-        # Get the default font metrics
-        font_metrics = QFontMetrics(self.font())
-
-        # Width of one em in pixels
-        em_pixel_width = font_metrics.width("m")
-
-        # Calculate the total width in pixels
-        total_width = em_pixel_width * em_width
-
-        # Set the fixed width
-        self.setFixedWidth(total_width)
+class DataWidget(Enum):
+    CONSTANTS = 0
+    DIMENSIONS = 1
+    EXPRESSIONS = 2
 
 
 class MainWindow(QMainWindow):
@@ -361,121 +67,119 @@ class MainWindow(QMainWindow):
             Qt.Horizontal
         )  # This will allow resizing horizontally
 
-        # Splitter for left layout
+        # Create Tab widget and add tabs
+        self.tab_widget = QTabWidget()
+
+        # First tab: Analysis Information
+        analysis_widget = self.create_analysis_page()
+        self.tab_widget.addTab(analysis_widget, "Analysis Information")
+
+        # Second tab: Data definition
+        data_widget = self.create_data_page()
+        self.tab_widget.addTab(data_widget, "Data")
+
+        output_widget = self.create_output_widget()
+
+        self.main_splitter.addWidget(self.tab_widget)
+        self.main_splitter.addWidget(output_widget)
+
+        text_edit_width = self.text_edit.sizeHint().width()
+        left_size = self.WINDOW_WIDTH - text_edit_width
+        self.output_column_width = text_edit_width
+        self.main_splitter.setSizes([left_size, self.output_column_width])
+
+        main_layout.addWidget(self.main_splitter)
+        central_widget.setLayout(main_layout)
+
+        # Create Menu Bar
+        self.setup_menu_bar()
+
+        # Create a Status Bar
+        self.statusBar().showMessage("Ready")
+
+        # Standalone shortcuts
+        self.setup_shortcuts()
+
+        # Intercept window close to prompt for save
+        self.setAttribute(Qt.WA_DeleteOnClose, True)
+        self.closeEvent = self.on_close_event
+
+    def create_analysis_page(self):
+        page = QWidget()
+        analysis_layout = QVBoxLayout()
+        analysis_layout.addWidget(QTextEdit("Placeholder"))
+        analysis_layout.addWidget(QCheckBox("Checkbox 1"))
+        analysis_layout.addWidget(QCheckBox("Checkbox 2"))
+        analysis_layout.addWidget(QCheckBox("Checkbox 3"))
+        page.setLayout(analysis_layout)
+
+        return page
+
+    def create_data_page(self):
         left_splitter = QSplitter(Qt.Vertical)
 
-        right_layout = QVBoxLayout()
+        groups_info = [
+            ("CONSTANTS:", EditableConstantWidget, DataWidget.CONSTANTS),
+            ("DIMENSIONS:", EditableDimensionWidget, DataWidget.DIMENSIONS),
+            ("EXPRESSIONS:", EditableExpressionWidget, DataWidget.EXPRESSIONS),
+        ]
 
-        # Table widgets: Constants
-        self.constants_widget = EditableConstantWidget()
+        self.widgets = dict()
 
-        self.add_constant_button = QPushButton("+")
-        self.delete_constant_button = QPushButton("-")
-        self.add_constant_button.clicked.connect(
-            lambda: self.add_item(self.constants_widget, InsertPosition.BELOW)
-        )
-        self.delete_constant_button.clicked.connect(
-            lambda: self.delete_item(self.constants_widget)
-        )
-
-        # Horizontal layout for constants title and buttons
-        constant_header_layout = QHBoxLayout()
-        constant_title_label = QLabel("CONSTANTS:")
-        constant_title_label.setFixedHeight(30)
-        constant_title_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        constant_header_layout.addWidget(constant_title_label)
-        constant_header_layout.addStretch()
-        constant_header_layout.addWidget(self.add_constant_button)
-        constant_header_layout.addWidget(self.delete_constant_button)
-
-        # Wrapper for constants group
-        constants_group = QWidget()
-        constants_layout = QVBoxLayout()
-        constants_layout.addLayout(constant_header_layout)
-        constants_layout.addWidget(self.constants_widget)
-        constants_group.setLayout(constants_layout)
-
-        # Table Widgets: Dimensions
-        self.dimensions_widget = EditableDimensionWidget()
-
-        self.add_dimension_button = QPushButton("+")
-        self.delete_dimension_button = QPushButton("-")
-        self.add_dimension_button.clicked.connect(
-            lambda: self.add_item(self.dimensions_widget, InsertPosition.BELOW)
-        )
-        self.delete_dimension_button.clicked.connect(
-            lambda: self.delete_item(self.dimensions_widget)
-        )
-
-        # Horizontal layout for dimensions title and buttons
-        dimension_header_layout = QHBoxLayout()
-        dimension_title_label = QLabel("DIMENSIONS:")
-        dimension_title_label.setFixedHeight(30)
-        dimension_title_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        dimension_header_layout.addWidget(dimension_title_label)
-        dimension_header_layout.addStretch()
-        dimension_header_layout.addWidget(self.add_dimension_button)
-        dimension_header_layout.addWidget(self.delete_dimension_button)
-
-        # Wrapper for dimensions group
-        dimensions_group = QWidget()
-        dimensions_layout = QVBoxLayout()
-        dimensions_layout.addLayout(dimension_header_layout)
-        dimensions_layout.addWidget(self.dimensions_widget)
-        dimensions_group.setLayout(dimensions_layout)
-
-        # Table Widgets: Expressions
-        self.expressions_widget = EditableExpressionWidget()
-
-        self.add_expression_button = QPushButton("+")
-        self.delete_expression_button = QPushButton("-")
-        self.add_expression_button.clicked.connect(
-            lambda: self.add_item(self.expressions_widget, InsertPosition.BELOW)
-        )
-        self.delete_expression_button.clicked.connect(
-            lambda: self.delete_item(self.expressions_widget)
-        )
-
-        # Horizontal layout for expressions title and buttons
-        expression_header_layout = QHBoxLayout()
-        expression_title_label = QLabel("EXPRESSIONS:")
-        expression_title_label.setFixedHeight(30)
-        expression_title_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        expression_header_layout.addWidget(expression_title_label)
-        expression_header_layout.addStretch()
-        expression_header_layout.addWidget(self.add_expression_button)
-        expression_header_layout.addWidget(self.delete_expression_button)
-
-        # Wrapper for expressions group
-        expressions_group = QWidget()
-        expressions_layout = QVBoxLayout()
-        expressions_layout.addLayout(expression_header_layout)
-        expressions_layout.addWidget(self.expressions_widget)
-        expressions_group.setLayout(expressions_layout)
-
-        # Add groups to left splitter
-        left_splitter.addWidget(constants_group)
-        left_splitter.addWidget(dimensions_group)
-        left_splitter.addWidget(expressions_group)
+        for title, widget_class, key in groups_info:
+            (group_widget, data_widget) = self.create_data_group(
+                title,
+                widget_class(),
+            )
+            left_splitter.addWidget(group_widget)
+            self.widgets[key] = data_widget
 
         # Set default sizes: 25% for top, 40% for middle, and remainder for bottom
         total_height = self.height()
         constant_height = int(0.25 * total_height)
         dimension_height = int(0.4 * total_height)
         expression_height = total_height - constant_height - dimension_height
-        left_splitter.setSizes(
-            [
-                constant_height,
-                dimension_height,
-                expression_height,
-            ]
-        )
+        left_splitter.setSizes([constant_height, dimension_height, expression_height])
 
-        # Create a left widget to contain the left splitter
-        left_widget = QWidget()
         left_layout = QVBoxLayout()
         left_layout.addWidget(left_splitter)
-        left_widget.setLayout(left_layout)
+
+        page = QWidget()
+        page.setLayout(left_layout)
+
+        return page
+
+    def create_data_group(
+        self,
+        title,
+        main_widget,
+    ):
+        add_button = QPushButton("+")
+        add_button.clicked.connect(
+            lambda: self.add_item(main_widget, InsertPosition.BELOW)
+        )
+        delete_button = QPushButton("-")
+        delete_button.clicked.connect(lambda: self.delete_item(main_widget))
+
+        header_layout = QHBoxLayout()
+        title_label = QLabel(title)
+        title_label.setFixedHeight(30)
+        title_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        header_layout.addWidget(title_label)
+        header_layout.addStretch()
+        header_layout.addWidget(add_button)
+        header_layout.addWidget(delete_button)
+
+        group_widget = QWidget()
+        layout = QVBoxLayout()
+        layout.addLayout(header_layout)
+        layout.addWidget(main_widget)
+        group_widget.setLayout(layout)
+
+        return (group_widget, main_widget)
+
+    def create_output_widget(self):
+        layout = QVBoxLayout()
 
         # Checkboxes
         self.usage_checkbox = QCheckBox("Where Used")
@@ -494,9 +198,7 @@ class MainWindow(QMainWindow):
         checkbox_layout.addStretch()
         checkbox_layout.addWidget(update_button)
 
-        right_layout.addLayout(
-            checkbox_layout
-        )  # Add the checkbox layout to the right layout
+        layout.addLayout(checkbox_layout)  # Add the checkbox layout to the right layout
 
         # Text box
         fixed_font = QFont("Consolas")
@@ -504,146 +206,99 @@ class MainWindow(QMainWindow):
         fixed_font.setFixedPitch(True)
         fixed_font.setPointSize(10)
         self.text_edit = EmWidthTextEdit(fixed_font, 85)
-        text_edit_width = self.text_edit.sizeHint().width()
-        right_layout.addWidget(self.text_edit)
+        layout.addWidget(self.text_edit)
 
-        right_widget = QWidget()
-        right_widget.setLayout(right_layout)
+        widget = QWidget()
+        widget.setLayout(layout)
 
-        self.main_splitter.addWidget(left_widget)
-        self.main_splitter.addWidget(right_widget)
+        return widget
 
-        left_size = self.WINDOW_WIDTH - text_edit_width
-        self.output_column_width = text_edit_width
-        self.main_splitter.setSizes([left_size, self.output_column_width])
-
-        main_layout.addWidget(self.main_splitter)
-        central_widget.setLayout(main_layout)
-
-        # Create Menu Bar
-        menubar = self.menuBar()
-        file_menu = menubar.addMenu("File")
-        edit_menu = menubar.addMenu("Edit")
-        help_menu = menubar.addMenu("Help")
-
-        # Add actions to the File menu
-        new_action = QAction("New", self)
-        new_action.setShortcut("Ctrl+N")
-        new_action.setStatusTip("Open new analysis (Ctrl+N)")
-        new_action.triggered.connect(self.new_analysis)
-
-        open_action = QAction("Open", self)
-        open_action.setShortcut("Ctrl+O")
-        open_action.setStatusTip("Open input definitions (Ctrl+O)")
-        open_action.triggered.connect(self.open_file)
-
-        save_inputs_action = QAction("Save", self)
-        save_inputs_action.setShortcut("Ctrl+S")
-        save_inputs_action.setStatusTip("Save input definitions (Ctrl+S)")
-        save_inputs_action.triggered.connect(self.save_inputs)
-
-        save_inputs_as_action = QAction("Save As...", self)
-        save_inputs_as_action.setStatusTip("Save input definitions as...")
-        save_inputs_as_action.triggered.connect(self.save_as_inputs)
-
-        export_action = QAction("Export", self)
-        export_action.setShortcut("Ctrl+E")
-        export_action.setStatusTip("Export result to file (Ctrl+E)")
-        export_action.triggered.connect(self.save_outputs)
-
-        file_menu.addAction(new_action)
-        file_menu.addAction(open_action)
-        file_menu.addAction(save_inputs_action)
-        file_menu.addAction(save_inputs_as_action)
-        file_menu.addAction(export_action)
-
-        # Add actions to the Edit menu
-        update_action = QAction("Update", self)
-        update_action.setShortcut("Ctrl+R")
-        update_action.setStatusTip("Update results (Ctrl+R)")
-        update_action.triggered.connect(self.update_results)
-
-        add_constant_action = QAction("Add constant", self)
-        add_constant_action.setShortcut("Ctrl+1")
-        add_constant_action.setStatusTip("Add new constant (Ctrl+1)")
-        add_constant_action.triggered.connect(
-            lambda: self.add_item(self.constants_widget)
-        )
-
-        add_dimension_action = QAction("Add dimension", self)
-        add_dimension_action.setShortcut("Ctrl+2")
-        add_dimension_action.setStatusTip("Add new dimension (Ctrl+2)")
-        add_dimension_action.triggered.connect(
-            lambda: self.add_item(self.dimensions_widget)
-        )
-
-        add_expression_action = QAction("Add expression", self)
-        add_expression_action.setShortcut("Ctrl+3")
-        add_expression_action.setStatusTip("Add new expression (Ctrl+3)")
-        add_expression_action.triggered.connect(
-            lambda: self.add_item(self.expressions_widget)
-        )
-
-        rename_action = QAction("Rename item", self)
-        # rename_action.setShortcut("Ctrl+R")
-        rename_action.setStatusTip("Rename a constant or dimension.")
-        rename_action.triggered.connect(self.rename_item)
-
-        edit_menu.addAction(update_action)
-        edit_menu.addSeparator()
-        edit_menu.addAction(add_constant_action)
-        edit_menu.addAction(add_dimension_action)
-        edit_menu.addAction(add_expression_action)
-        edit_menu.addSeparator()
-        edit_menu.addAction(rename_action)
-
-        # Add actions to the Help menu
-        help_action = QAction("Help", self)
-        help_action.setStatusTip("Show help")
-        help_action.triggered.connect(self.display_help)
-
-        about_action = QAction("About", self)
-        about_action.setStatusTip("About this application")
-        about_action.triggered.connect(self.display_about)
-
-        help_menu.addAction(help_action)
-        help_menu.addAction(about_action)
-
-        # Create a Status Bar
-        self.statusBar().showMessage("Ready")
-
-        # Standalone shortcuts
+    def setup_shortcuts(self):
+        """Setup standalone shortcuts."""
         constants_shortcut = QShortcut(QKeySequence("Ctrl+Shift+1"), self)
-        constants_shortcut.activated.connect(self.switch_focus_to_constants)
+        constants_shortcut.activated.connect(
+            lambda: self.switch_focus_to(DataWidget.CONSTANTS)
+        )
 
         dimensions_shortcut = QShortcut(QKeySequence("Ctrl+Shift+2"), self)
-        dimensions_shortcut.activated.connect(self.switch_focus_to_dimensions)
+        dimensions_shortcut.activated.connect(
+            lambda: self.switch_focus_to(DataWidget.DIMENSIONS)
+        )
 
         expressions_shortcut = QShortcut(QKeySequence("Ctrl+Shift+3"), self)
-        expressions_shortcut.activated.connect(self.switch_focus_to_expressions)
+        expressions_shortcut.activated.connect(
+            lambda: self.switch_focus_to(DataWidget.EXPRESSIONS)
+        )
 
         rename_shortcut = QShortcut(QKeySequence(Qt.Key_F2), self)
         rename_shortcut.activated.connect(lambda: self.rename_item(use_focused=True))
 
-        # Intercept window close to prompt for save
-        self.setAttribute(Qt.WA_DeleteOnClose, True)
-        self.closeEvent = self.on_close_event
+    def setup_menu_bar(self):
+        """Setup the menu bar."""
+        menubar = self.menuBar()
 
-    # def update_table_display(self):
-    #     sample_data = [
-    #         "D1",
-    #         0.1,
-    #         0.002,
-    #         -0.0005,
-    #         "W",
-    #         "PRT-00000",
-    #         "Here's an example note.",
-    #     ]
-    #     self.constants_widget.add_row(sample_data)
+        file_options = [
+            ("New", "Ctrl+N", "Open new analysis (Ctrl+N)", self.new_analysis),
+            ("Open", "Ctrl+O", "Open input definitions (Ctrl+O)", self.open_file),
+            ("Save", "Ctrl+S", "Save input definitions (Ctrl+S)", self.save_inputs),
+            ("Save As...", "", "Save input definitions as...", self.save_as_inputs),
+            ("Export", "Ctrl+E", "Export result to file (Ctrl+E)", self.save_outputs),
+        ]
+
+        edit_options = [
+            ("Update", "Ctrl+R", "Update results pane (Ctrl+R)", self.update_results),
+            ("SEP", "", "", None),
+            (
+                "Add constant",
+                "Ctrl+1",
+                "Add new constant (Ctrl+1)",
+                lambda: self.add_item(self.widgets[DataWidget.CONSTANTS]),
+            ),
+            (
+                "Add dimension",
+                "Ctrl+2",
+                "Add new constant (Ctrl+2)",
+                lambda: self.add_item(self.widgets[DataWidget.DIMENSIONS]),
+            ),
+            (
+                "Add expression",
+                "Ctrl+3",
+                "Add new expression (Ctrl+3)",
+                lambda: self.add_item(self.widgets[DataWidget.EXPRESSIONS]),
+            ),
+            ("SEP", "", "", None),
+            ("Rename item", "", "Rename a constant or dimension", self.rename_item),
+        ]
+
+        help_options = [
+            ("Help", "F1", "Show help", self.display_help),
+            ("About", "", "About this application", self.display_about),
+        ]
+
+        menus = {"File": file_options, "Edit": edit_options, "Help": help_options}
+
+        for name, menu_items in menus.items():
+            current_menu = menubar.addMenu(name)
+            for menu_item in menu_items:
+                if menu_item[0] == "SEP":
+                    current_menu.addSeparator()
+                    continue
+
+                current_action = QAction(menu_item[0], self)
+                if menu_item[1]:
+                    current_action.setShortcut(menu_item[1])
+                if menu_item[2]:
+                    current_action.setStatusTip(menu_item[2])
+                current_action.triggered.connect(menu_item[3])
+                current_menu.addAction(current_action)
+
+        return
 
     def add_item(
         self, widget: EditableTableWidget, position: InsertPosition = InsertPosition.ADD
     ):
+        # switch so user can see the item they just added
+        self.tab_widget.setCurrentIndex(1)
         widget.insert_row(position, select_after=True)
 
     def delete_item(self, widget):
@@ -655,9 +310,9 @@ class MainWindow(QMainWindow):
             widget.removeRow(row)
 
     def update_results(self):
-        c_data = self.constants_widget.get_all_data()
-        d_data = self.dimensions_widget.get_all_data()
-        e_data = self.expressions_widget.get_all_data()
+        c_data = self.widgets[DataWidget.CONSTANTS].get_all_data()
+        d_data = self.widgets[DataWidget.DIMENSIONS].get_all_data()
+        e_data = self.widgets[DataWidget.EXPRESSIONS].get_all_data()
 
         U = self.usage_checkbox.isChecked()
         S = self.sensitivity_checkbox.isChecked()
@@ -692,9 +347,9 @@ class MainWindow(QMainWindow):
             if not proceed:
                 return
 
-        self.constants_widget.clear_all_data()
-        self.dimensions_widget.clear_all_data()
-        self.expressions_widget.clear_all_data()
+        self.widgets[DataWidget.CONSTANTS].clear_all_data()
+        self.widgets[DataWidget.DIMENSIONS].clear_all_data()
+        self.widgets[DataWidget.EXPRESSIONS].clear_all_data()
 
         self.text_edit.setText("")
 
@@ -749,9 +404,9 @@ class MainWindow(QMainWindow):
 
             # Check if new_name already exists in any of the three widgets
             if (
-                self.constants_widget.has_key(new_name)
-                or self.dimensions_widget.has_key(new_name)
-                or self.expressions_widget.has_key(new_name)
+                self.widgets[DataWidget.CONSTANTS].has_key(new_name)
+                or self.widgets[DataWidget.DIMENSIONS].has_key(new_name)
+                or self.widgets[DataWidget.EXPRESSIONS].has_key(new_name)
             ):
 
                 reply = QMessageBox.question(
@@ -776,8 +431,8 @@ class MainWindow(QMainWindow):
             original_item = selected_item
         elif use_focused:
             original_item = (
-                self.constants_widget.currentItem()
-                or self.dimensions_widget.currentItem()
+                self.widgets[DataWidget.CONSTANTS].currentItem()
+                or self.widgets[DataWidget.DIMENSIONS].currentItem()
             )
         if original_item:
             row = original_item.row()
@@ -793,7 +448,10 @@ class MainWindow(QMainWindow):
 
             renamed = False
 
-            for widget in [self.constants_widget, self.dimensions_widget]:
+            for widget in [
+                self.widgets[DataWidget.CONSTANTS],
+                self.widgets[DataWidget.DIMENSIONS],
+            ]:
                 for row in range(widget.rowCount()):
                     item = widget.item(row, 0)
                     if item and item.text() == old_name:
@@ -801,8 +459,8 @@ class MainWindow(QMainWindow):
                         renamed = True
 
             if renamed:
-                for row in range(self.expressions_widget.rowCount()):
-                    item = self.expressions_widget.item(row, 1)
+                for row in range(self.widgets[DataWidget.EXPRESSIONS].rowCount()):
+                    item = self.widgets[DataWidget.EXPRESSIONS].item(row, 1)
                     if item:
                         item_text = item.text()
                         new_item_text = re.sub(
@@ -864,18 +522,18 @@ class MainWindow(QMainWindow):
                     + "\n",
                 )
                 file.write("*CONSTANTS, VALUE, NOTE" + "\n")
-                for row_data in self.constants_widget.get_all_data():
+                for row_data in self.widgets[DataWidget.CONSTANTS].get_all_data():
                     file.write(",".join(row_data) + "\n")
 
                 file.write(
                     "*DIMENSIONS, NOMINAL, PLUS, MINUS, DISTRIBUTION, PART NUMBER, NOTE"
                     + "\n"
                 )
-                for row_data in self.dimensions_widget.get_all_data():
+                for row_data in self.widgets[DataWidget.DIMENSIONS].get_all_data():
                     file.write(",".join(row_data) + "\n")
 
                 file.write("*EXPRESSIONS, VALUE, LOWER, UPPER, METHOD, NOTE" + "\n")
-                for row_data in self.expressions_widget.get_all_data():
+                for row_data in self.widgets[DataWidget.EXPRESSIONS].get_all_data():
                     file.write(",".join(row_data) + "\n")
 
                 self.store_state_at_save()
@@ -889,9 +547,9 @@ class MainWindow(QMainWindow):
 
     def get_current_state(self):
         return [
-            self.constants_widget.get_all_data(),
-            self.dimensions_widget.get_all_data(),
-            self.expressions_widget.get_all_data(),
+            self.widgets[DataWidget.CONSTANTS].get_all_data(),
+            self.widgets[DataWidget.DIMENSIONS].get_all_data(),
+            self.widgets[DataWidget.EXPRESSIONS].get_all_data(),
         ]
 
     def open_file(self):
@@ -910,9 +568,9 @@ class MainWindow(QMainWindow):
     def open_file_from_name(self, file_name):
         if file_name:
             with open(file_name, "r", encoding="utf-8") as file:
-                self.constants_widget.setRowCount(0)
-                self.dimensions_widget.setRowCount(0)
-                self.expressions_widget.setRowCount(0)
+                self.widgets[DataWidget.CONSTANTS].setRowCount(0)
+                self.widgets[DataWidget.DIMENSIONS].setRowCount(0)
+                self.widgets[DataWidget.EXPRESSIONS].setRowCount(0)
 
                 current_widget = None
                 split_limit = -1
@@ -924,13 +582,13 @@ class MainWindow(QMainWindow):
                         continue
 
                     if line.startswith("*CONSTANTS"):
-                        current_widget = self.constants_widget
+                        current_widget = self.widgets[DataWidget.CONSTANTS]
                         split_limit = 2
                     elif line.startswith("*DIMENSIONS"):
-                        current_widget = self.dimensions_widget
+                        current_widget = self.widgets[DataWidget.DIMENSIONS]
                         split_limit = 6
                     elif line.startswith("*EXPRESSIONS"):
-                        current_widget = self.expressions_widget
+                        current_widget = self.widgets[DataWidget.EXPRESSIONS]
                         split_limit = 5
                     else:
                         if current_widget is not None:
@@ -1031,17 +689,19 @@ class MainWindow(QMainWindow):
         msg_box.setStandardButtons(QMessageBox.Ok)
         msg_box.exec_()
 
-    def switch_focus_to_constants(self):
-        self.constants_widget.setFocus()
-        self.constants_widget.setCurrentCell(0, 0, QItemSelectionModel.ClearAndSelect)
+    def switch_focus_to(self, widget_type):
+        """Switch focus to a specific widget based on WidgetType."""
+        if widget_type == DataWidget.CONSTANTS:
+            widget = self.widgets[DataWidget.CONSTANTS]
+        elif widget_type == DataWidget.DIMENSIONS:
+            widget = self.widgets[DataWidget.DIMENSIONS]
+        elif widget_type == DataWidget.EXPRESSIONS:
+            widget = self.widgets[DataWidget.EXPRESSIONS]
+        else:
+            raise ValueError("Invalid widget type for switch_focus_to method")
 
-    def switch_focus_to_dimensions(self):
-        self.dimensions_widget.setFocus()
-        self.dimensions_widget.setCurrentCell(0, 0, QItemSelectionModel.ClearAndSelect)
-
-    def switch_focus_to_expressions(self):
-        self.expressions_widget.setFocus()
-        self.expressions_widget.setCurrentCell(0, 0, QItemSelectionModel.ClearAndSelect)
+        widget.setFocus()
+        widget.setCurrentCell(0, 0, QItemSelectionModel.ClearAndSelect)
 
     def keep_output_panel_width_fixed(self):
         left_size = self.width() - self.output_column_width
