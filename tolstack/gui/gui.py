@@ -334,7 +334,12 @@ class MainWindow(QMainWindow):
 
         file_options = [
             ("New", "Ctrl+N", "Open new analysis (Ctrl+N)", self.new_analysis),
-            ("Open", "Ctrl+O", "Open input definitions (Ctrl+O)", self.open_file),
+            (
+                "Open",
+                "Ctrl+O",
+                "Open input definitions (Ctrl+O)",
+                lambda: self.open_file(),
+            ),
             ("Save", "Ctrl+S", "Save input definitions (Ctrl+S)", self.save_inputs),
             ("Save As...", "", "Save input definitions as...", self.save_as_inputs),
             ("Export", "Ctrl+E", "Export result to file (Ctrl+E)", self.save_outputs),
