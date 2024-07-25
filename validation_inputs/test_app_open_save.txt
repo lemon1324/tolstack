@@ -1,0 +1,14 @@
+*VERSIONINFO, 0.6.1, 2.0
+*OPTIONS,False,inches,True,False,True
+*ANALYSISINFO
+0,test_title
+1,XXX-12345
+2,A
+3,Multiple\nlines\nof\ntext.
+*CONSTANTS, VALUE, NOTE
+Cxx,0.0,-
+*DIMENSIONS, NOMINAL, PLUS, MINUS, DISTRIBUTION, PART NUMBER, NOTE
+Dxx,0.0,0.0,0.0,U,-,-
+Dyy,0.0,0.0,0.0,U,-,-
+*EXPRESSIONS, VALUE, LOWER, UPPER, METHOD, NOTE
+Exx,-,,,W,-

@@ -1,6 +1,6 @@
 import unittest
 
-from tolstack.StackFormat import (
+from tolstack.gui.FormatText import (
     format_shortest,
     format_scientific,
     format_significant_figures,

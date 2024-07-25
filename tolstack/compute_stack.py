@@ -4,93 +4,25 @@ import logging
 
 from tolstack.StackParser import StackParser
 
-from tolstack.StackFormat import (
-    format_constant,
-    format_constant_header,
-    format_dimension,
-    format_dimension_header,
-    format_usage,
-    format_expression_summary,
-    format_expression,
-    format_sensitivity,
-    format_contribution,
-)
+from tolstack.gui.FormatText import format_text
+
+from tolstack.gui.FileIO import open_from_name
+from tolstack.gui.GUITypes import OptionsWidget, DataWidget
 
 
-def _process_stack_parser(
-    SP, print_usage, conduct_sensitivity_analysis, conduct_tolerance_contribution
-):
-    print_lines = []
+def process_info(info):
+    SP = StackParser()
+    SP.parse_from_data(
+        constants_data=info[DataWidget.CONSTANTS],
+        dimensions_data=info[DataWidget.DIMENSIONS],
+        expressions_data=info[DataWidget.EXPRESSIONS],
+    )
 
-    value_map = SP.constants | SP.dimensions
-
-    if SP.constants:
-        print_lines.append("CONSTANTS:")
-        print_lines.append(format_constant_header())
-        for key, C in SP.constants.items():
-            print_lines.append(format_constant(C))
-            if print_usage and C.key in SP.where_used:
-                print_lines.append(format_usage(C, SP.where_used))
-        print_lines.append("\n")
-
-    if SP.dimensions:
-        print_lines.append("DIMENSIONS:")
-        print_lines.append(format_dimension_header())
-        for key, D in SP.dimensions.items():
-            print_lines.append(format_dimension(D))
-            if print_usage and D.key in SP.where_used:
-                print_lines.append(format_usage(D, SP.where_used))
-        print_lines.append("\n")
-
-    if SP.expressions:
-        print_lines.append("EXPRESSION SUMMARY:")
-        for key, SE in SP.expressions.items():
-            print_lines.append(format_expression_summary(SE))
-
-        print_lines.append('\n')
-
-        print_lines.append("EXPRESSIONS:")
-        for key, SE in SP.expressions.items():
-            print_lines.append(format_expression(SE))
-
-            if conduct_sensitivity_analysis:
-                s = SE.sensitivities()
-                print_lines.append(format_sensitivity(SE, s))
-
-            if conduct_tolerance_contribution:
-                c = SE.contributions()
-                print_lines.append(format_contribution(SE, c))
-            print_lines[-1] = print_lines[-1] + "\n"
-
+    print_lines = format_text(SP, info)
     return print_lines
 
 
-def process_lines(
-    lines, print_usage, conduct_sensitivity_analysis, conduct_tolerance_contribution
-):
-    SP = StackParser()
-    SP.parse(lines)
-    return _process_stack_parser(
-        SP, print_usage, conduct_sensitivity_analysis, conduct_tolerance_contribution
-    )
-
-
-def process_data(
-    constants_data,
-    dimensions_data,
-    expressions_data,
-    print_usage,
-    conduct_sensitivity_analysis,
-    conduct_tolerance_contribution,
-):
-    SP = StackParser()
-    SP.parse_from_data(constants_data, dimensions_data, expressions_data)
-    return _process_stack_parser(
-        SP, print_usage, conduct_sensitivity_analysis, conduct_tolerance_contribution
-    )
-
-
-def process_files(
+def process_file(
     input_file,
     output_file,
     print_usage,
@@ -98,15 +30,19 @@ def process_files(
     conduct_tolerance_contribution,
 ):
     try:
-        with open(input_file, "r") as file:
-            lines = file.readlines()
+        info = open_from_name(input_file)
+        info[OptionsWidget.WHERE_USED] = print_usage
+        info[OptionsWidget.SENSITIVITY] = conduct_sensitivity_analysis
+        info[OptionsWidget.CONTRIBUTIONS] = conduct_tolerance_contribution
 
-        print_lines = process_lines(
-            lines,
-            print_usage,
-            conduct_sensitivity_analysis,
-            conduct_tolerance_contribution,
+        SP = StackParser()
+        SP.parse_from_data(
+            constants_data=info[DataWidget.CONSTANTS],
+            dimensions_data=info[DataWidget.DIMENSIONS],
+            expressions_data=info[DataWidget.EXPRESSIONS],
         )
+
+        print_lines = format_text(SP, info)
 
         if output_file:
             with open(output_file, "w", encoding="utf-8") as out_file:
@@ -167,7 +103,7 @@ if __name__ == "__main__":
     conduct_sensitivity_analysis = args.sensitivity_analysis
     conduct_tolerance_contribution = args.tolerance_contribution
 
-    process_files(
+    process_file(
         input_file,
         output_file,
         print_usage,

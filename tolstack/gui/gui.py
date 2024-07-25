@@ -17,13 +17,14 @@ from PyQt5.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
     QHBoxLayout,
+    QFrame,
     QWidget,
 )
 from PyQt5.QtCore import Qt, QItemSelectionModel
 
 from PyQt5.QtGui import QFont, QKeySequence
 
-from tolstack.compute_stack import process_data
+from tolstack.compute_stack import process_info
 
 import traceback
 
@@ -34,13 +35,10 @@ import re
 import os
 
 from tolstack.AppConfig import AppConfig
-from tolstack.GUIWidgets import *
-
-
-class DataWidget(Enum):
-    CONSTANTS = 0
-    DIMENSIONS = 1
-    EXPRESSIONS = 2
+from tolstack.gui.GUIWidgets import *
+from tolstack.gui.FileIO import save_to_name, open_from_name
+from tolstack.gui.GUITypes import *
+from tolstack.gui.Qt5Utils import get_widget_text, set_widget_text
 
 
 class MainWindow(QMainWindow):
@@ -55,6 +53,8 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("tolstack")
         self.resize(self.WINDOW_WIDTH, self.WINDOW_HEIGHT)
+
+        self.widgets = dict()
 
         # Central widget
         central_widget = QWidget()
@@ -77,6 +77,10 @@ class MainWindow(QMainWindow):
         # Second tab: Data definition
         data_widget = self.create_data_page()
         self.tab_widget.addTab(data_widget, "Data")
+
+        # Third tab: Options definition
+        options_widget = self.create_options_page()
+        self.tab_widget.addTab(options_widget, "Options")
 
         output_widget = self.create_output_widget()
 
@@ -107,12 +111,46 @@ class MainWindow(QMainWindow):
     def create_analysis_page(self):
         page = QWidget()
         analysis_layout = QVBoxLayout()
-        analysis_layout.addWidget(QTextEdit("Placeholder"))
-        analysis_layout.addWidget(QCheckBox("Checkbox 1"))
-        analysis_layout.addWidget(QCheckBox("Checkbox 2"))
-        analysis_layout.addWidget(QCheckBox("Checkbox 3"))
-        page.setLayout(analysis_layout)
 
+        # Define a list of tuples with field specifications
+        # label, input class, input reference, default input
+        fields = [
+            ("Title:", QLineEdit, AnalysisWidget.TITLE, ""),
+            ("Document Number:", QLineEdit, AnalysisWidget.DOCNO, ""),
+            ("Revision:", QLineEdit, AnalysisWidget.REVISION, ""),
+        ]
+
+        label_widgets = []
+
+        # Loop through the defined fields and create layouts and widgets
+        for label_text, label_class, widget_key, default_text in fields:
+            layout = QHBoxLayout()
+            label = QLabel(label_text)
+            self.widgets[widget_key] = label_class()
+            self.widgets[widget_key].setText(default_text)
+            layout.addWidget(label)
+            layout.addWidget(self.widgets[widget_key])
+
+            analysis_layout.addLayout(layout)
+            label_widgets.append(label)
+
+        # Calculate the maximum label width
+        max_label_width = max(label.sizeHint().width() for label in label_widgets)
+
+        # Set all labels to this maximum width
+        for label in label_widgets:
+            label.setFixedWidth(max_label_width)
+
+        # Description Field
+        description_label = QLabel("Description:")
+        self.widgets[AnalysisWidget.DESCRIPTION] = QTextEdit()
+
+        # Adding description field to the main layout
+        analysis_layout.addWidget(description_label)
+        analysis_layout.addWidget(self.widgets[AnalysisWidget.DESCRIPTION])
+
+        # Set the main layout to the page
+        page.setLayout(analysis_layout)
         return page
 
     def create_data_page(self):
@@ -123,8 +161,6 @@ class MainWindow(QMainWindow):
             ("DIMENSIONS:", EditableDimensionWidget, DataWidget.DIMENSIONS),
             ("EXPRESSIONS:", EditableExpressionWidget, DataWidget.EXPRESSIONS),
         ]
-
-        self.widgets = dict()
 
         for title, widget_class, key in groups_info:
             (group_widget, data_widget) = self.create_data_group(
@@ -147,6 +183,62 @@ class MainWindow(QMainWindow):
         page = QWidget()
         page.setLayout(left_layout)
 
+        return page
+
+    def create_options_page(self):
+        page = QWidget()
+        options_layout = QVBoxLayout()
+        options_layout.setAlignment(Qt.AlignTop)
+
+        # Define a list of tuples with labeled field specifications:
+        fields = [
+            ("Units:", QLineEdit, OptionsWidget.UNITS, "inches"),
+        ]
+
+        # Define a list of tuples with labeled field specifications for checkboxes:
+        checkboxes = [
+            (
+                "Include dimension images in report",
+                QCheckBox,
+                OptionsWidget.FIND_IMAGES,
+            ),
+        ]
+
+        label_widgets = []
+
+        # Loop through the defined fields and create layouts and widgets
+        for item_label, item_class, widget_key, default_text in fields:
+            layout = QHBoxLayout()
+            label = QLabel(item_label)
+            self.widgets[widget_key] = item_class()
+            self.widgets[widget_key].setText(default_text)
+            layout.addWidget(label)
+            layout.addWidget(self.widgets[widget_key])
+
+            options_layout.addLayout(layout)
+            label_widgets.append(label)
+
+        # Calculate the maximum label width
+        max_label_width = max(label.sizeHint().width() for label in label_widgets)
+
+        # Set all labels to this maximum width
+        for label in label_widgets:
+            label.setFixedWidth(max_label_width)
+
+        options_layout.addSpacing(15)
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        options_layout.addWidget(line)
+        options_layout.addSpacing(10)
+
+        # Checkbox Fields
+        for item_label, item_class, widget_key in checkboxes:
+            self.widgets[widget_key] = item_class(item_label)
+            options_layout.addWidget(self.widgets[widget_key])
+
+        # Set the main layout to the page
+        page.setLayout(options_layout)
         return page
 
     def create_data_group(
@@ -182,9 +274,9 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout()
 
         # Checkboxes
-        self.usage_checkbox = QCheckBox("Where Used")
-        self.sensitivity_checkbox = QCheckBox("Sensitivity")
-        self.contribution_checkbox = QCheckBox("Tolerance Contribution")
+        self.widgets[OptionsWidget.WHERE_USED] = QCheckBox("Where Used")
+        self.widgets[OptionsWidget.SENSITIVITY] = QCheckBox("Sensitivity")
+        self.widgets[OptionsWidget.CONTRIBUTIONS] = QCheckBox("Tolerance Contribution")
 
         # Update button
         update_button = QPushButton("Update")
@@ -192,9 +284,9 @@ class MainWindow(QMainWindow):
 
         # Horizontal layout for checkboxes and update button
         checkbox_layout = QHBoxLayout()
-        checkbox_layout.addWidget(self.usage_checkbox)
-        checkbox_layout.addWidget(self.sensitivity_checkbox)
-        checkbox_layout.addWidget(self.contribution_checkbox)
+        checkbox_layout.addWidget(self.widgets[OptionsWidget.WHERE_USED])
+        checkbox_layout.addWidget(self.widgets[OptionsWidget.SENSITIVITY])
+        checkbox_layout.addWidget(self.widgets[OptionsWidget.CONTRIBUTIONS])
         checkbox_layout.addStretch()
         checkbox_layout.addWidget(update_button)
 
@@ -310,23 +402,10 @@ class MainWindow(QMainWindow):
             widget.removeRow(row)
 
     def update_results(self):
-        c_data = self.widgets[DataWidget.CONSTANTS].get_all_data()
-        d_data = self.widgets[DataWidget.DIMENSIONS].get_all_data()
-        e_data = self.widgets[DataWidget.EXPRESSIONS].get_all_data()
-
-        U = self.usage_checkbox.isChecked()
-        S = self.sensitivity_checkbox.isChecked()
-        T = self.contribution_checkbox.isChecked()
+        info = self.get_analysis_information()
 
         try:
-            print_lines = process_data(
-                constants_data=c_data,
-                dimensions_data=d_data,
-                expressions_data=e_data,
-                print_usage=U,
-                conduct_sensitivity_analysis=S,
-                conduct_tolerance_contribution=T,
-            )
+            print_lines = process_info(info)
 
             saved_scroll = self.text_edit.verticalScrollBar().value()
             self.text_edit.setPlainText("\n".join(print_lines))
@@ -500,7 +579,9 @@ class MainWindow(QMainWindow):
             "All Files (*);;Text Files (*.txt)",
             options=options,
         )
-        self.save_inputs_to_name(self.SAVE_FILE)
+        info = self.get_analysis_information()
+        save_to_name(self.SAVE_FILE, info)
+        self.update_save_info(self.SAVE_FILE)
 
     def save_inputs(self):
         if not self.SAVE_FILE:
@@ -512,32 +593,62 @@ class MainWindow(QMainWindow):
                 "All Files (*);;Text Files (*.txt)",
                 options=options,
             )
-        self.save_inputs_to_name(self.SAVE_FILE)
+        info = self.get_analysis_information()
+        save_to_name(self.SAVE_FILE, info)
+        self.update_save_info(self.SAVE_FILE)
 
-    def save_inputs_to_name(self, file_name):
-        if file_name:
-            with open(file_name, "w", encoding="utf-8") as file:
-                file.write(
-                    f"*VERSIONINFO, {AppConfig.app_version}, {AppConfig.file_format_version}"
-                    + "\n",
-                )
-                file.write("*CONSTANTS, VALUE, NOTE" + "\n")
-                for row_data in self.widgets[DataWidget.CONSTANTS].get_all_data():
-                    file.write(",".join(row_data) + "\n")
+    def update_save_info(self, file_name):
+        self.store_state_at_save()
+        self.statusBar().showMessage(f"Saved to {file_name}", 3000)
 
-                file.write(
-                    "*DIMENSIONS, NOMINAL, PLUS, MINUS, DISTRIBUTION, PART NUMBER, NOTE"
-                    + "\n"
-                )
-                for row_data in self.widgets[DataWidget.DIMENSIONS].get_all_data():
-                    file.write(",".join(row_data) + "\n")
+    def get_analysis_information(self):
+        info = dict()
 
-                file.write("*EXPRESSIONS, VALUE, LOWER, UPPER, METHOD, NOTE" + "\n")
-                for row_data in self.widgets[DataWidget.EXPRESSIONS].get_all_data():
-                    file.write(",".join(row_data) + "\n")
+        # Collect actual data
+        for key in DataWidget:
+            info[key] = self.widgets[key].get_all_data()
 
-                self.store_state_at_save()
-                self.statusBar().showMessage(f"Saved to {file_name}", 3000)
+        # Collect analysis information
+        for key in AnalysisWidget:
+            widget = self.widgets[key]
+            info[key] = (
+                get_widget_text(widget)
+                if not is_boolean_option(key)
+                else widget.isChecked()
+            )
+
+        # Collect options information
+        for key in OptionsWidget:
+            widget = self.widgets[key]
+            info[key] = (
+                get_widget_text(widget)
+                if not is_boolean_option(key)
+                else widget.isChecked()
+            )
+
+        return info
+
+    def set_analysis_information(self, info):
+        # Set data in widgets
+        for key in DataWidget:
+            self.widgets[key].setRowCount(0)
+            for row in info[key]:
+                self.widgets[key].insert_row(InsertPosition.ADD, row)
+
+        self.store_state_at_save()
+
+        self.text_edit.setText("")
+
+        # Set the analysis information
+        for key in AnalysisWidget:
+            set_widget_text(self.widgets[key], info[key])
+
+        # Set options (mostly checkboxes)
+        for key in OptionsWidget:
+            if is_boolean_option(key):
+                self.widgets[key].setChecked(info[key])
+            else:
+                set_widget_text(self.widgets[key], info[key])
 
     def store_state_at_save(self):
         self.CONTENTS_AT_SAVE = self.get_current_state()
@@ -545,58 +656,31 @@ class MainWindow(QMainWindow):
     def has_unsaved_changes(self):
         return self.CONTENTS_AT_SAVE != self.get_current_state()
 
+    # This is the same as get_analysis_information, but in list form to allow comparison to the stored state
     def get_current_state(self):
-        return [
-            self.widgets[DataWidget.CONSTANTS].get_all_data(),
-            self.widgets[DataWidget.DIMENSIONS].get_all_data(),
-            self.widgets[DataWidget.EXPRESSIONS].get_all_data(),
-        ]
+        info = self.get_analysis_information()
+        return [info[key] for key in info.keys()]
 
-    def open_file(self):
-        if self.has_unsaved_changes():
+    def open_file(self, file_name=None, forced=False):
+        if self.has_unsaved_changes() and not forced:
             proceed = self.ask_to_save()
 
             if not proceed:
                 return
 
-        options = QFileDialog.Options()
-        self.SAVE_FILE, _ = QFileDialog.getOpenFileName(
-            self, "Open File", "", "All Files (*);;Text Files (*.txt)", options=options
-        )
-        self.open_file_from_name(self.SAVE_FILE)
-
-    def open_file_from_name(self, file_name):
-        if file_name:
-            with open(file_name, "r", encoding="utf-8") as file:
-                self.widgets[DataWidget.CONSTANTS].setRowCount(0)
-                self.widgets[DataWidget.DIMENSIONS].setRowCount(0)
-                self.widgets[DataWidget.EXPRESSIONS].setRowCount(0)
-
-                current_widget = None
-                split_limit = -1
-
-                for line in file:
-                    line = line.strip()
-
-                    if not line:
-                        continue
-
-                    if line.startswith("*CONSTANTS"):
-                        current_widget = self.widgets[DataWidget.CONSTANTS]
-                        split_limit = 2
-                    elif line.startswith("*DIMENSIONS"):
-                        current_widget = self.widgets[DataWidget.DIMENSIONS]
-                        split_limit = 6
-                    elif line.startswith("*EXPRESSIONS"):
-                        current_widget = self.widgets[DataWidget.EXPRESSIONS]
-                        split_limit = 5
-                    else:
-                        if current_widget is not None:
-                            data = line.split(",", split_limit)
-                            current_widget.insert_row(InsertPosition.ADD, data)
-                self.store_state_at_save()
-
-                self.text_edit.setText("")
+        if file_name is None:
+            options = QFileDialog.Options()
+            self.SAVE_FILE, _ = QFileDialog.getOpenFileName(
+                self,
+                "Open File",
+                "",
+                "All Files (*);;Text Files (*.txt)",
+                options=options,
+            )
+        else:
+            self.SAVE_FILE = file_name
+        info = open_from_name(self.SAVE_FILE)
+        self.set_analysis_information(info)
 
     def save_outputs(self):
         options = QFileDialog.Options()

@@ -3,8 +3,10 @@ from tempfile import NamedTemporaryFile
 from PyQt5.QtWidgets import QApplication
 import os
 
-from tolstack.gui import MainWindow
+from tolstack.gui.gui import MainWindow
 from tolstack.AppConfig import AppConfig
+from tolstack.gui.GUITypes import DataWidget, AnalysisWidget, OptionsWidget
+from tolstack.gui.FileIO import *
 
 
 class TestMainWindow(unittest.TestCase):
@@ -15,33 +17,26 @@ class TestMainWindow(unittest.TestCase):
     def setUp(self):
         self.window = MainWindow()
 
-    def test_open_and_save_file(self):
-        test_data = f"""*VERSIONINFO, {AppConfig.app_version}, {AppConfig.file_format_version}
-*CONSTANTS, VALUE, NOTE
-name1,10,note1
-name2,20,note2
-*DIMENSIONS, NOMINAL, PLUS, MINUS, DISTRIBUTION, PART NUMBER, NOTE
-dim1,1.0,0.1,-0.1,D,PN001,noteA
-dim2,2.0,0.2,-0.2,D,PN002,noteB
-*EXPRESSIONS, VALUE, LOWER, UPPER, METHOD, NOTE
-exp1,100,90,110,M,noteX
-exp2,200,180,220,M,noteY
-"""
+        self.local_input_file_path = "validation_inputs/test_app_open_save.txt"
 
-        # Create a temporary file with test data
+        with open(self.local_input_file_path, "r") as file:
+            self.test_data = file.read()
+
+    def test_open_and_save_file(self):
         temp_input_file = NamedTemporaryFile(delete=False, mode="w+t")
-        temp_input_file.write(test_data)
+        temp_input_file.write(self.test_data)
         temp_input_file.close()
 
         # Open the temporary test file
-        self.window.open_file_from_name(temp_input_file.name)
+        self.window.open_file(temp_input_file.name, forced=True)
 
         # Create another temporary file to save the output
         temp_output_file = NamedTemporaryFile(delete=False, mode="w+t")
         temp_output_file.close()
 
         # Save the inputs
-        self.window.save_inputs_to_name(temp_output_file.name)
+        self.window.SAVE_FILE = temp_output_file.name
+        self.window.save_inputs()
 
         # Read the contents of the saved file
         with open(temp_output_file.name, "r") as file:
@@ -52,4 +47,74 @@ exp2,200,180,220,M,noteY
         os.remove(temp_output_file.name)
 
         # Assert that the saved data matches the original test data
-        self.assertEqual(saved_data.strip(), test_data.strip())
+        self.assertEqual(saved_data.strip(), self.test_data.strip())
+
+
+class TestFileIOFunctions(unittest.TestCase):
+
+    def setUp(self):
+        self.dummy_info = {
+            OptionsWidget.UNITS: "inches",
+            OptionsWidget.FIND_IMAGES: False,
+            OptionsWidget.WHERE_USED: True,
+            OptionsWidget.SENSITIVITY: False,
+            OptionsWidget.CONTRIBUTIONS: True,
+            AnalysisWidget.TITLE: "Title",
+            AnalysisWidget.DOCNO: "XXX-00000",
+            AnalysisWidget.REVISION: "A",
+            AnalysisWidget.DESCRIPTION: "Content\nwith\nmultiple\nlines.",
+            DataWidget.CONSTANTS: [
+                ["const1_name", "const1_value1", "const1_note"],
+                ["const2_name", "const2_value1", "const2_note"],
+            ],
+            DataWidget.DIMENSIONS: [
+                [
+                    "dim1_name",
+                    "dim1_nominal",
+                    "dim1_plus",
+                    "dim1_minus",
+                    "dim1_distribution",
+                    "dim1_part_number",
+                    "dim1_note",
+                ],
+                [
+                    "dim2_name",
+                    "dim2_nominal",
+                    "dim2_plus",
+                    "dim2_minus",
+                    "dim2_distribution",
+                    "dim2_part_number",
+                    "dim2_note",
+                ],
+            ],
+            DataWidget.EXPRESSIONS: [
+                [
+                    "expr1_name",
+                    "expr1_value",
+                    "expr1_lower",
+                    "expr1_upper",
+                    "expr1_method",
+                    "expr1_note",
+                ],
+                [
+                    "expr2_name",
+                    "expr2_value",
+                    "expr2_lower",
+                    "expr2_upper",
+                    "expr2_method",
+                    "expr2_note",
+                ],
+            ],
+        }
+
+    def test_save_open_functions(self):
+        with NamedTemporaryFile(delete=False) as tmp_file:
+            tmp_filename = tmp_file.name
+
+        try:
+            save_to_name(tmp_filename, self.dummy_info)
+            loaded_info = open_from_name(tmp_filename)
+
+            self.assertEqual(self.dummy_info, loaded_info)
+        finally:
+            os.remove(tmp_filename)

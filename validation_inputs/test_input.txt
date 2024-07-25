@@ -1,3 +1,10 @@
+*VERSIONINFO, 0.6.1, 2.0
+*OPTIONS,False,inches,True,False,True
+*ANALYSISINFO
+0,test_title
+1,XXX-12345
+2,A
+3,Multiple\nlines\nof\ntext.
 *CONSTANTS, VALUE, NOTE
 PI,3.1415,The number π is a mathematical constant that is the ratio of a circle's circumference to its diameter, approximately equal to 3.14159. The number π appears in many formulae across mathematics and physics.
 g,9.81,Standard acceleration due to gravity

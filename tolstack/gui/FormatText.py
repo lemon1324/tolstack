@@ -1,15 +1,75 @@
 from tolstack.StackDim import StackDim
 from tolstack.StackExpr import StackExpr
 from tolstack.StackTypes import get_code_from_dist
+from tolstack.StackParser import StackParser
 
 from tolstack.StackUtils import word_wrap
 
+from tolstack.gui.GUITypes import *
+
 from math import isinf, isclose
 
-from decimal import Decimal
 import re
 
 FORMAT_WIDTH = 80
+
+
+# info as defined by the gui get_info method
+def format_text(parser: StackParser, info):
+    print_lines = []
+
+    value_map = parser.constants | parser.dimensions
+
+    # Print Analysis Info
+    print_lines.append(f"{info[AnalysisWidget.TITLE].upper()}")
+    print_lines.append(
+        f"{info[AnalysisWidget.DOCNO]}{'-' if info[AnalysisWidget.DOCNO] else 'Rev. '}{info[AnalysisWidget.REVISION]}\n"
+    )
+    print_lines.append(info[AnalysisWidget.DESCRIPTION])
+    print_lines.append("\n")
+
+    # Print document units
+    print_lines.append(f"THIS DOCUMENT IN {info[OptionsWidget.UNITS].upper()}.\n")
+
+    if parser.constants:
+        print_lines.append("CONSTANTS:")
+        print_lines.append(format_constant_header())
+        for key, C in parser.constants.items():
+            print_lines.append(format_constant(C))
+            if info[OptionsWidget.WHERE_USED] and C.key in parser.where_used:
+                print_lines.append(format_usage(C, parser.where_used))
+        print_lines.append("\n")
+
+    if parser.dimensions:
+        print_lines.append("DIMENSIONS:")
+        print_lines.append(format_dimension_header())
+        for key, D in parser.dimensions.items():
+            print_lines.append(format_dimension(D))
+            if info[OptionsWidget.WHERE_USED] and D.key in parser.where_used:
+                print_lines.append(format_usage(D, parser.where_used))
+        print_lines.append("\n")
+
+    if parser.expressions:
+        print_lines.append("EXPRESSION SUMMARY:")
+        for key, SE in parser.expressions.items():
+            print_lines.append(format_expression_summary(SE))
+
+        print_lines.append("\n")
+
+        print_lines.append("EXPRESSIONS:")
+        for key, SE in parser.expressions.items():
+            print_lines.append(format_expression(SE))
+
+            if info[OptionsWidget.SENSITIVITY]:
+                s = SE.sensitivities()
+                print_lines.append(format_sensitivity(SE, s))
+
+            if info[OptionsWidget.CONTRIBUTIONS]:
+                c = SE.contributions()
+                print_lines.append(format_contribution(SE, c))
+            print_lines[-1] = print_lines[-1] + "\n"
+
+    return print_lines
 
 
 def format_constant_header():
