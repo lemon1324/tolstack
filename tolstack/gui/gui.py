@@ -108,6 +108,9 @@ class MainWindow(QMainWindow):
         self.setAttribute(Qt.WA_DeleteOnClose, True)
         self.closeEvent = self.on_close_event
 
+        # Store initial state to prevent spurious unsaved chages on start
+        self.store_state_at_save()
+
     def create_analysis_page(self):
         page = QWidget()
         analysis_layout = QVBoxLayout()
