@@ -40,7 +40,7 @@ class StackExpr:
     def __str__(self) -> str:
         return f"{self.expr} {self.note}"
 
-    def evaluate(self, value_map=None):
+    def evaluate(self, value_map=None) -> StackDim:
         self._setValueOrError(value_map)
 
         return self._evaluate(self.root)

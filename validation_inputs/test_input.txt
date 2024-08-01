@@ -1,10 +1,10 @@
 *VERSIONINFO, 0.6.1, 2.0
 *OPTIONS,False,inches,True,False,True
 *ANALYSISINFO
-0,test_title
+0,The Test Document Title
 1,XXX-12345
 2,A
-3,Multiple\nlines\nof\ntext.
+3,Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer viverra ipsum a pharetra consectetur. Aenean ornare neque et maximus interdum. Nulla vel fringilla velit. Nam auctor lacus eget leo consequat finibus. Aliquam aliquam porttitor ex. Integer aliquet urna id purus tincidunt, aliquam imperdiet lorem hendrerit. Aliquam at auctor ipsum. Ut rutrum metus ut risus pellentesque, eget lacinia massa iaculis. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Vivamus non interdum dolor. Nullam sollicitudin urna nec metus feugiat aliquet. Quisque eget dui vitae sapien laoreet blandit. Donec fermentum placerat dui ac aliquet. Donec mollis, ex et pharetra vulputate, enim velit ornare mauris, tincidunt vestibulum quam nibh nec magna. Ut velit mauris, aliquam vitae massa eget, efficitur imperdiet mi. Donec varius dapibus auctor.\nVivamus tempus vitae dui at vehicula. Vestibulum tortor lorem, scelerisque vel molestie semper, venenatis dignissim magna. Quisque molestie ipsum eget ligula aliquet ultrices. Donec arcu lectus, vulputate non ex a, bibendum porta ligula. Nulla fringilla magna eget diam accumsan, ut volutpat turpis hendrerit. Vivamus ut pretium nunc. Etiam volutpat velit in velit tincidunt posuere. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae;\nProin non dapibus nisl. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Nam interdum porta euismod. Sed ut augue enim. Pellentesque ut dignissim diam, sit amet vehicula massa. In id aliquam nunc. Integer mollis euismod tellus, a fermentum lorem feugiat eu. Mauris tellus massa, cursus auctor erat id, auctor iaculis erat.
 *CONSTANTS, VALUE, NOTE
 PI,3.1415,The number π is a mathematical constant that is the ratio of a circle's circumference to its diameter, approximately equal to 3.14159. The number π appears in many formulae across mathematics and physics.
 g,9.81,Standard acceleration due to gravity
@@ -25,3 +25,4 @@ E7,(D1+D2) * D3,1.2,1.7,2S,Expression with parentheses and a percentage error, 2
 E8,(D2/D3) - (D3/(D1+D2)),,,3S,Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus vestibulum justo non mauris viverra, tempor fringilla augue convallis. Praesent sed vulputate orci. Nunc blandit quam a tortor aliquet vehicula. Duis.
 E9,0-D1,,,W,Test case for zero values.
 E10,D4^D5,,,W,-
+E11,D4*PI,,,W,-

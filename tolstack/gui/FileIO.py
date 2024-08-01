@@ -7,6 +7,7 @@ from tolstack.gui.GUITypes import (
 )
 
 from distutils.util import strtobool
+from packaging.version import Version
 
 import re
 
@@ -65,15 +66,10 @@ def open_from_name(file_name):
     else:
         raise ValueError("Attempting to open file but no version information present.")
 
-    # Parse OPTIONS
-    options_line = lines.pop(0).strip()
-    if options_line.startswith("*OPTIONS,"):
-        options = options_line.replace("*OPTIONS,", "").split(",")
-        for idx, key in enumerate(OptionsWidget):
-            if is_boolean_option(key):
-                info[key] = True if strtobool(options[idx]) else False
-            else:
-                info[key] = options[idx]
+    if Version(file_format_version) < Version(AppConfig.file_format_version):
+        raise RuntimeError(
+            "File is from an older version of tolstack, please edit file or manually copy entries."
+        )
 
     # Initialize other sections
     analysis_info = {}
@@ -87,7 +83,16 @@ def open_from_name(file_name):
     for line in lines:
         line = line.strip()
 
-        if line.startswith("*ANALYSISINFO"):
+        # TODO: add possibility for comment lines in an input file?
+
+        if line.startswith("*OPTIONS"):
+            options = line.replace("*OPTIONS,", "").split(",")
+            for idx, key in enumerate(OptionsWidget):
+                if is_boolean_option(key):
+                    info[key] = True if strtobool(options[idx]) else False
+                else:
+                    info[key] = options[idx]
+        elif line.startswith("*ANALYSISINFO"):
             current_section = "analysis"
             split_limit = 1
             continue

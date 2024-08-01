@@ -1,4 +1,11 @@
+# Standard Library Imports
 import sys
+import traceback
+import re
+import os
+
+# Third-Party Library Imports
+import markdown
 from PyQt5.QtWidgets import (
     QAction,
     QApplication,
@@ -21,19 +28,10 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 from PyQt5.QtCore import Qt, QItemSelectionModel
-
 from PyQt5.QtGui import QFont, QKeySequence
 
-from tolstack.compute_stack import process_info
-
-import traceback
-
-import markdown
-
-import re
-
-import os
-
+# Local Application Imports
+from tolstack.compute_stack import process_info, process_info_to_pdf
 from tolstack.AppConfig import AppConfig
 from tolstack.gui.GUIWidgets import *
 from tolstack.gui.FileIO import save_to_name, open_from_name
@@ -413,11 +411,27 @@ class MainWindow(QMainWindow):
         info = self.get_analysis_information()
 
         try:
+            # TODO: progress bar so if this takes a long time it doesn't unnerve user.
             print_lines = process_info(info)
 
             saved_scroll = self.text_edit.verticalScrollBar().value()
             self.text_edit.setPlainText("\n".join(print_lines))
             self.text_edit.verticalScrollBar().setValue(saved_scroll)
+
+            self.statusBar().showMessage("Updated results", 1500)
+        except RuntimeError as r:
+            self.show_non_fatal_error(r)
+        except ValueError as v:
+            self.show_non_fatal_error(v)
+        except Exception as e:
+            self.show_non_fatal_error(e)
+
+    def generate_pdf(self, filename):
+        info = self.get_analysis_information()
+
+        try:
+            # TODO: progress bar so if this takes a long time it doesn't unnerve user.
+            process_info_to_pdf(info, filename)
 
             self.statusBar().showMessage("Updated results", 1500)
         except RuntimeError as r:
@@ -440,7 +454,14 @@ class MainWindow(QMainWindow):
 
         self.text_edit.setText("")
 
+        self.widgets[AnalysisWidget.TITLE].setText("")
+        self.widgets[AnalysisWidget.DOCNO].setText("")
+        self.widgets[AnalysisWidget.REVISION].setText("")
+        self.widgets[AnalysisWidget.DESCRIPTION].setText("")
+
         self.SAVE_FILE = None
+
+        self.store_state_at_save()
 
         self.statusBar().showMessage("New analysis", 1500)
 
@@ -687,8 +708,19 @@ class MainWindow(QMainWindow):
             )
         else:
             self.SAVE_FILE = file_name
-        info = open_from_name(self.SAVE_FILE)
-        self.set_analysis_information(info)
+        try:
+            if not self.SAVE_FILE:
+                return
+
+            info = open_from_name(self.SAVE_FILE)
+            self.set_analysis_information(info)
+            self.store_state_at_save()
+        except RuntimeError as r:
+            self.show_non_fatal_error(r)
+        except ValueError as v:
+            self.show_non_fatal_error(v)
+        except Exception as e:
+            self.show_non_fatal_error(e)
 
     def save_outputs(self):
         options = QFileDialog.Options()
@@ -696,12 +728,20 @@ class MainWindow(QMainWindow):
             self,
             "Save Outputs",
             "",
-            "All Files (*);;Text Files (*.txt)",
+            "All Files (*);;Text Files (*.txt);;PDF Files (*.pdf)",
             options=options,
         )
         if file_name:
-            with open(file_name, "w", encoding="utf-8") as file:
-                file.write(self.text_edit.toPlainText())
+            if file_name.lower().endswith(".pdf"):
+                self.generate_pdf(file_name)
+                self.statusBar().showMessage(f"Saved output pdf to {file_name}", 3000)
+                # TODO: for pdf output, add progress bar so we don't unnerve the user.
+            else:
+                with open(file_name, "w", encoding="utf-8") as file:
+                    file.write(self.text_edit.toPlainText())
+                    self.statusBar().showMessage(
+                        f"Saved output text to {file_name}", 3000
+                    )
 
     def show_non_fatal_error(self, e):
         # Create a message box

@@ -21,19 +21,7 @@ class StackParser:
         self.category = None
         self.TP = None
 
-    def parse(self, file_lines):
-        for line in file_lines:
-            if line.startswith("*"):
-                # Get the category name without '*'
-                self.category = line.strip()[1:].split(",")[0].lower()
-
-                # assume sections are in order; set up tree parser
-                if self.category == "expressions":
-                    self.TP = TreeParser(self.constants | self.dimensions)
-            elif self.category:
-                self._handle_category(line.strip())
-
-    def parse_from_data(self, constants_data, dimensions_data, expressions_data):
+    def parse(self, constants_data, dimensions_data, expressions_data):
         for constant_row in constants_data:
             self._handle_constants_tokens(constant_row)
         for dimension_row in dimensions_data:
@@ -190,21 +178,3 @@ class StackParser:
     def _handle_expressions(self, line):
         tokens = [token.strip() for token in line.split(",")]
         self._handle_expressions_tokens(tokens)
-
-
-if __name__ == "__main__":
-    # Example Usage:
-    file_lines = [
-        "*CONSTANTS",
-        "element1",
-        "element2",
-        "*DIMENSIONS",
-        "elementA",
-        "elementB",
-        "*EXPRESSIONS",
-        "elementX",
-        "*OUTPUT",
-        "an output",
-    ]
-
-    StackParser.parse(file_lines)

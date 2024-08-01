@@ -5,6 +5,7 @@ import logging
 from tolstack.StackParser import StackParser
 
 from tolstack.gui.FormatText import format_text
+from tolstack.gui.FormatPDF import format_pdf
 
 from tolstack.gui.FileIO import open_from_name
 from tolstack.gui.GUITypes import OptionsWidget, DataWidget
@@ -12,7 +13,7 @@ from tolstack.gui.GUITypes import OptionsWidget, DataWidget
 
 def process_info(info):
     SP = StackParser()
-    SP.parse_from_data(
+    SP.parse(
         constants_data=info[DataWidget.CONSTANTS],
         dimensions_data=info[DataWidget.DIMENSIONS],
         expressions_data=info[DataWidget.EXPRESSIONS],
@@ -20,6 +21,17 @@ def process_info(info):
 
     print_lines = format_text(SP, info)
     return print_lines
+
+
+def process_info_to_pdf(info, filename):
+    SP = StackParser()
+    SP.parse(
+        constants_data=info[DataWidget.CONSTANTS],
+        dimensions_data=info[DataWidget.DIMENSIONS],
+        expressions_data=info[DataWidget.EXPRESSIONS],
+    )
+
+    format_pdf(output_filename=filename, parser=SP, info=info)
 
 
 def process_file(
@@ -36,7 +48,7 @@ def process_file(
         info[OptionsWidget.CONTRIBUTIONS] = conduct_tolerance_contribution
 
         SP = StackParser()
-        SP.parse_from_data(
+        SP.parse(
             constants_data=info[DataWidget.CONSTANTS],
             dimensions_data=info[DataWidget.DIMENSIONS],
             expressions_data=info[DataWidget.EXPRESSIONS],

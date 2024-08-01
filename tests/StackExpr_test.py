@@ -1,7 +1,8 @@
 import unittest
 
-from tolstack.StackExpr import StackExpr
 from tolstack.StackParser import StackParser
+from tolstack.gui.FileIO import open_from_name
+from tolstack.gui.GUITypes import DataWidget
 
 
 class TestStackExprDerivatives(unittest.TestCase):
@@ -12,10 +13,12 @@ class TestStackExprDerivatives(unittest.TestCase):
         # D3 = 5
         self.SP = StackParser()
 
-        with open("validation_inputs/test_Expression_derivative.txt", "r") as file:
-            lines = file.readlines()
-
-        self.SP.parse(lines)
+        info = open_from_name("validation_inputs/test_Expression_derivative.txt")
+        self.SP.parse(
+            constants_data=info[DataWidget.CONSTANTS],
+            dimensions_data=info[DataWidget.DIMENSIONS],
+            expressions_data=info[DataWidget.EXPRESSIONS],
+        )
 
         self.value_map = self.SP.constants | self.SP.dimensions
 
@@ -150,3 +153,5 @@ class TestStackExprDerivatives(unittest.TestCase):
         nom, partial = expr._evaluateDerivative(expr.root, "D4")
         self.assertAlmostEqual(nom, 12 / 5)
         self.assertAlmostEqual(partial, 0)
+
+    # TODO: Add derivative tests for the trigonometric functions.
