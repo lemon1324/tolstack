@@ -1,6 +1,9 @@
 # Standard Library Imports
 from io import BytesIO
+import os
 from pathlib import Path
+from PIL import Image as PILImage
+from collections import defaultdict
 from collections.abc import Iterable
 from math import isinf, isclose
 
@@ -33,7 +36,7 @@ from tolstack.StackExpr import StackExpr
 from tolstack.StackDim import StackDim
 
 # TODO: imports only for debugging, remove later
-from tolstack.gui.FileIO import open_from_name
+from tolstack.gui.FileIO import open_from_name, get_absolute_path
 
 
 # Primary function to format and generate the PDF
@@ -55,17 +58,28 @@ def create_content_elements(parser: StackParser, info):
     append_or_extend(contents, create_units_note(info))
     append_or_extend(contents, Spacer(0, 20))
 
-    # Dimension and Expression Summaries
-    append_or_extend(contents, create_constants_summary(parser, info))
+    # Summaries
+    if parser.constants:
+        append_or_extend(contents, create_constants_summary(parser, info))
+
+    # TODO: add a toggle option to be able to enable/disable detailed vs brief summary for dims
     # append_or_extend(contents, create_dimension_summary(parser, info))
-    append_or_extend(contents, create_dimension_details(parser, info))
+    append_or_extend(contents, create_dimension_table(parser, info))
+
+    # TODO: add options flag to enable/disable expression summaries
     append_or_extend(contents, create_expression_summary(parser, info))
 
-    # Expression Details
+    # Details
+    if info[OptionsWidget.FIND_IMAGES]:
+        append_or_extend(contents, create_dimension_details(parser, info))
+
+    append_or_extend(contents, create_expression_details(parser, info))
+
+    # DEBUG
     # expr = parser.expressions["E1"]
     # value = expr.evaluate()
     # append_or_extend(contents, create_tolerance_table(expr, value))
-    append_or_extend(contents, create_expression_details(parser, info))
+    # append_or_extend(contents, create_expression_details(parser, info))
     # append_or_extend(contents, create_single_expression(parser.expressions["E6"], info))
 
     # append_or_extend(
@@ -198,11 +212,11 @@ def create_dimension_summary(parser: StackParser, info):
     return elements
 
 
-def create_dimension_details(parser: StackParser, info):
+def create_dimension_table(parser: StackParser, info):
     elements = []
 
     # Section title
-    elements.append(Paragraph("DIMENSIONS:", PDFStyles["SectionHeaderStyle"]))
+    elements.append(Paragraph("DIMENSION SUMMARY:", PDFStyles["SectionHeaderStyle"]))
 
     # Dimension Summary Table
     headers = [["ID", "Nom.", "+", "-", "D", "PN", "Note"]]
@@ -266,6 +280,100 @@ def create_dimension_details(parser: StackParser, info):
     elements.append(table)
 
     elements.append(Spacer(0, 20))
+
+    return elements
+
+
+def create_dimension_details(parser: StackParser, info):
+    elements = []
+    image_search_path = get_absolute_path(
+        info["SAVE_FILE"], info[OptionsWidget.IMAGE_FOLDER]
+    )
+
+    # Identify all unique PNs and associated dimensions
+    PNs = defaultdict(set)
+    for key, dim in parser.dimensions.items():
+        if dim.PN:
+            PNs[dim.PN].add(key)
+
+    # iterate over PNs in alphabetical order, case-insensitive
+    for PN in sorted(PNs, key=lambda x: x.lower()):
+        # Section title
+        elements.append(
+            Paragraph(f"PART NUMBER {PN}:", PDFStyles["SectionHeaderStyle"])
+        )
+
+        # Add image if it exists
+        image = find_image(image_search_path, PN, 4 * inch)
+        if image is None:
+            elements.append(
+                Paragraph(f"Warning, no image found in {image_search_path} for {PN}")
+            )
+        else:
+            elements.append(image)
+
+        # Dimension Summary Table
+        headers = [["ID", "Nom.", "+", "-", "D", "Note"]]
+        data = []
+        style = TableStyle(
+            [
+                ("ALIGN", (0, 0), (4, -1), "RIGHT"),
+                ("ALIGN", (4, 0), (4, -1), "CENTER"),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                ("VALIGN", (0, 1), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (4, -1), 2),
+                ("RIGHTPADDING", (0, 0), (4, -1), 2),
+            ]
+        )
+
+        for dkey in sorted(PNs[PN]):
+            D = parser.dimensions[dkey]
+            row = [
+                D.key,
+                format_shortest(D.nom, 4),
+                format_shortest(D.plus, 3),
+                format_shortest(D.minus, 3),
+                get_code_from_dist(D.disttype),
+                Paragraph(D.note if D.note else "", PDFStyles["PlainStyle"]),
+            ]
+            data.append(row)
+
+            # if info[OptionsWidget.WHERE_USED] and D.key in parser.where_used:
+            #     usagetext = f"Used in: {', '.join([f'{expr_key}' for expr_key in sorted(parser.where_used[D.key])])}"
+            #     data.append(
+            #         [
+            #             "",
+            #             "",
+            #             "",
+            #             "",
+            #             "",
+            #             Paragraph(usagetext, PDFStyles["PlainStyle"]),
+            #         ]
+            #     )
+            #     style.add("BOTTOMPADDING", (0, len(data) - 1), (-1, len(data) - 1), 0)
+            #     style.add("BOTTOMPADDING", (0, len(data)), (-1, len(data)), 5)
+            #     style.add("NOSPLIT", (0, len(data) - 1), (-1, len(data)))
+
+        full_data = headers + data
+
+        col_widths = [
+            0.5 * inch,
+            0.6 * inch,
+            0.6 * inch,
+            0.6 * inch,
+            0.3 * inch,
+            0 * inch,
+        ]
+        col_widths[-1] = (letter[0] - 2 * inch) - sum(col_widths[:-1])
+
+        table = Table(full_data, colWidths=col_widths, repeatRows=1)
+        table.setStyle(style)
+        elements.append(table)
+
+        # iterate over dimensions for that PN, alphabetical
+        # for dkey in sorted(PNs[PN]):
+        #     elements.append(Paragraph(f"PN: {PN}, Dim: {dkey}"))
 
     return elements
 
@@ -340,17 +448,19 @@ def create_single_expression(expr: StackExpr, info):
     lb_table = create_bound_table(expr, value, lower=True)
     ub_table = create_bound_table(expr, value, lower=False)
 
-    # TODO: add option to enable/disable statistical plots.
-    graph = generate_dist_plot(
-        expr,
-        value=value,
-        width=3 * inch,
-        height=1 * inch,
-        axis_font_size=10,
-        line_weight=5,
-        dpi=300,
-        spine_linewidth=2,
-    )
+    if info[OptionsWidget.SHOW_PLOTS]:
+        graph = generate_dist_plot(
+            expr,
+            value=value,
+            width=3 * inch,
+            height=1 * inch,
+            axis_font_size=10,
+            line_weight=5,
+            dpi=300,
+            spine_linewidth=2,
+        )
+    else:
+        graph = Paragraph("", PDFStyles("PlainStyle"))
 
     top_table = [
         ["Expression:", expression, graph],
@@ -373,8 +483,7 @@ def create_single_expression(expr: StackExpr, info):
             ("SPAN", (2, 0), (2, -1)),  # Image span
             ("VALIGN", (2, 0), (2, -1), "CENTER"),  # Image alignment
             ("VALIGN", (1, 4), (1, 4), "CENTER"),  # tolerance alignment
-            ("LEFTPADDING", (0, 4), (0, -1), 30),  # Value info indent
-            ("LEFTPADDING", (0, 6), (0, -1), 36),  # Bound info indent
+            ("LEFTPADDING", (0, 5), (0, -1), 36),  # Bound info indent
         ]
     )
     col_widths = [1.3 * inch, 2 * inch, 0 * inch]
@@ -721,7 +830,7 @@ def generate_center_bar_image(val, width=3 * inch, height=1 * inch, dpi=300):
     # Draw the bar using axhspan
     left = min(0, val)
     right = max(0, val)
-    plt.fill((left, right, right, left), (0.15, 0.15, 0.85, 0.85), "green", alpha=0.5)
+    plt.fill((left, right, right, left), (0.15, 0.15, 0.85, 0.85), "#56B4E9", alpha=0.5)
     #     0.15,
     #     0.85,
     #     xmin=left,
@@ -771,7 +880,7 @@ def generate_bar_image(val, width=3 * inch, height=1 * inch, dpi=300):
     # Draw the bar using axhspan
     left = 0
     right = val
-    plt.fill((left, right, right, left), (0.15, 0.15, 0.85, 0.85), "green", alpha=0.5)
+    plt.fill((left, right, right, left), (0.15, 0.15, 0.85, 0.85), "#56B4E9", alpha=0.5)
 
     # Remove x and y axis labels
     ax.set_xticks([])
@@ -864,12 +973,42 @@ def get_lowest_level_folder(filename):
 
 
 # Helper function to search for a .png file and return the image data
-def find_png_image(folder, name):
-    image_path = folder / f"{name}.png"
-    if image_path.exists():
-        with open(image_path, "rb") as img_file:
-            return img_file.read()
-    return None
+def find_image(folder, name, desired_width):
+    # Define possible image extensions
+    extensions = ["jpg", "jpeg", "png", "gif", "bmp", "tiff"]
+
+    images = []
+
+    def load_image(file_path):
+        if os.path.isfile(file_path):
+            # Open the image using PIL to get dimensions
+            pil_image = PILImage.open(file_path)
+            original_width, original_height = pil_image.size
+
+            # Calculate new height to maintain aspect ratio
+            aspect_ratio = original_height / original_width
+            new_height = int(desired_width * aspect_ratio)
+
+            # Create and return the scaled Image object from reportlab
+            images.append(Image(file_path, width=desired_width, height=new_height))
+            return True
+        return False
+
+    # Search for the base image without suffix
+    for ext in extensions:
+        file_path = os.path.join(folder, f"{name}.{ext}")
+        load_image(file_path)
+
+    # Search for alpha-suffixed images (namea.ext, nameb.ext, etc.)
+    alphabet = "abcdefghijklmnopqrstuvwxyz"
+    for letter in alphabet:
+        for ext in extensions:
+            suffixed_file_path = os.path.join(folder, f"{name}{letter}.{ext}")
+            if not load_image(suffixed_file_path):
+                break  # stop looking for further suffixes if one is not found
+
+    # Return None if no image file is found
+    return None if not images else images
 
 
 def append_or_extend(lst, item):
@@ -883,12 +1022,15 @@ def append_or_extend(lst, item):
 
 # Example usage
 if __name__ == "__main__":
-    input_filename = "validation_inputs/test_input.txt"
+    input_filename = "validation_inputs/test_input_v3.txt"
     output_filename = "test_outputs/example_report.pdf"
 
     info = open_from_name(input_filename)
+    info[OptionsWidget.FIND_IMAGES] = True
     info[OptionsWidget.WHERE_USED] = True
     info[OptionsWidget.SENSITIVITY] = True
+
+    info["SAVE_FILE"] = os.path.abspath(input_filename)
 
     SP = StackParser()
     SP.parse(

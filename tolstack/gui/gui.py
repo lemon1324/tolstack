@@ -3,6 +3,7 @@ import sys
 import traceback
 import re
 import os
+from pathlib import Path
 
 # Third-Party Library Imports
 import markdown
@@ -34,7 +35,7 @@ from PyQt5.QtGui import QFont, QKeySequence
 from tolstack.compute_stack import process_info, process_info_to_pdf
 from tolstack.AppConfig import AppConfig
 from tolstack.gui.GUIWidgets import *
-from tolstack.gui.FileIO import save_to_name, open_from_name
+from tolstack.gui.FileIO import save_to_name, open_from_name, get_absolute_path
 from tolstack.gui.GUITypes import *
 from tolstack.gui.Qt5Utils import get_widget_text, set_widget_text
 
@@ -191,11 +192,6 @@ class MainWindow(QMainWindow):
         options_layout = QVBoxLayout()
         options_layout.setAlignment(Qt.AlignTop)
 
-        # Define a list of tuples with labeled field specifications:
-        fields = [
-            ("Units:", QLineEdit, OptionsWidget.UNITS, "inches"),
-        ]
-
         # Define a list of tuples with labeled field specifications for checkboxes:
         checkboxes = [
             (
@@ -204,6 +200,23 @@ class MainWindow(QMainWindow):
                 OptionsWidget.FIND_IMAGES,
             ),
         ]
+
+        # Define a list of tuples with labeled field specifications:
+        fields = [
+            ("Units:", QLineEdit, OptionsWidget.UNITS, "inches"),
+        ]
+
+        # Checkbox Fields
+        for item_label, item_class, widget_key in checkboxes:
+            self.widgets[widget_key] = item_class(item_label)
+            options_layout.addWidget(self.widgets[widget_key])
+
+        options_layout.addSpacing(15)
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        options_layout.addWidget(line)
+        options_layout.addSpacing(10)
 
         label_widgets = []
 
@@ -233,14 +246,52 @@ class MainWindow(QMainWindow):
         options_layout.addWidget(line)
         options_layout.addSpacing(10)
 
-        # Checkbox Fields
-        for item_label, item_class, widget_key in checkboxes:
-            self.widgets[widget_key] = item_class(item_label)
-            options_layout.addWidget(self.widgets[widget_key])
+        # Add more complex options to the options page manually
+        image_browser = self.setup_image_folder_widget()
+        options_layout.addLayout(image_browser)
 
         # Set the main layout to the page
         page.setLayout(options_layout)
         return page
+
+    # should return a QHBoxLayout to add to a Python Qt5 layout
+    def setup_image_folder_widget(self):
+        layout = QHBoxLayout()
+        label = QLabel("Image search folder:")
+
+        widget = QLineEdit()
+        widget.setText("/images/")
+
+        button = QPushButton("Browse")
+        button.clicked.connect(self.on_browse_clicked)
+
+        self.widgets[OptionsWidget.IMAGE_FOLDER] = widget
+        layout.addWidget(label)
+        layout.addWidget(widget)
+        layout.addWidget(button)
+
+        return layout
+
+    def on_browse_clicked(self):
+        # Check if self.SAVE_FILE is None or empty
+        if self.SAVE_FILE is None or not self.SAVE_FILE:
+            QMessageBox.warning(self, "Save File", "Please save the input file first.")
+            return
+
+        selected_folder = QFileDialog.getExistingDirectory(
+            self, "Select Image Search Folder"
+        )
+
+        if not selected_folder:
+            return
+
+        # Use pathlib to transform the string into a relative path from self.SAVE_FILE to the selected folder
+        save_file_path = Path(self.SAVE_FILE)
+        selected_folder_path = Path(selected_folder)
+        relative_path = os.path.relpath(selected_folder_path, save_file_path.parent)
+
+        # Update the widget text with the relative path
+        self.widgets[OptionsWidget.IMAGE_FOLDER].setText(str(relative_path))
 
     def create_data_group(
         self,
@@ -366,6 +417,31 @@ class MainWindow(QMainWindow):
             ),
             ("SEP", "", "", None),
             ("Rename item", "", "Rename a constant or dimension", self.rename_item),
+            ("SEP", "", "", None),
+            (
+                "Sort: Constants by Name",
+                "",
+                "Sort constants table by name",
+                lambda: self.widgets[DataWidget.CONSTANTS].sort_by_column(0),
+            ),
+            (
+                "Sort: Constants by Value",
+                "",
+                "Sort constants table by value numerically",
+                lambda: self.widgets[DataWidget.CONSTANTS].sort_by_column(1),
+            ),
+            (
+                "Sort: Dimensions by Name",
+                "",
+                "Sort dimensions table by name",
+                lambda: self.widgets[DataWidget.DIMENSIONS].sort_by_column(0),
+            ),
+            (
+                "Sort: Dimensions by PN",
+                "",
+                "Sort dimensions table by part number",
+                lambda: self.widgets[DataWidget.DIMENSIONS].sort_by_column(5),
+            ),
         ]
 
         help_options = [
@@ -655,6 +731,9 @@ class MainWindow(QMainWindow):
                 else widget.isChecked()
             )
 
+        # Also store active file location for pdf gen image search
+        info["SAVE_FILE"] = self.SAVE_FILE
+
         return info
 
     def set_analysis_information(self, info):
@@ -699,7 +778,7 @@ class MainWindow(QMainWindow):
 
         if file_name is None:
             options = QFileDialog.Options()
-            self.SAVE_FILE, _ = QFileDialog.getOpenFileName(
+            possible_file, _ = QFileDialog.getOpenFileName(
                 self,
                 "Open File",
                 "",
@@ -707,10 +786,12 @@ class MainWindow(QMainWindow):
                 options=options,
             )
         else:
-            self.SAVE_FILE = file_name
+            possible_file = file_name
         try:
-            if not self.SAVE_FILE:
+            if not possible_file:
                 return
+
+            self.SAVE_FILE = possible_file
 
             info = open_from_name(self.SAVE_FILE)
             self.set_analysis_information(info)

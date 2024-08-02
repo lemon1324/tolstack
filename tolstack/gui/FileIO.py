@@ -10,6 +10,7 @@ from distutils.util import strtobool
 from packaging.version import Version
 
 import re
+import os
 
 
 def save_to_name(file_name, info):
@@ -86,7 +87,9 @@ def open_from_name(file_name):
         # TODO: add possibility for comment lines in an input file?
 
         if line.startswith("*OPTIONS"):
-            options = line.replace("*OPTIONS,", "").split(",")
+            options = line.replace("*OPTIONS,", "").split(
+                ",", maxsplit=len(OptionsWidget) - 1
+            )
             for idx, key in enumerate(OptionsWidget):
                 if is_boolean_option(key):
                     info[key] = True if strtobool(options[idx]) else False
@@ -134,3 +137,16 @@ def open_from_name(file_name):
     info[DataWidget.EXPRESSIONS] = expressions
 
     return info
+
+
+def get_absolute_path(file_str, relative_str):
+    # Get the directory name of the file (i.e., the folder containing the file)
+    parent_directory = os.path.dirname(file_str)
+
+    # Combine the parent directory with the relative path
+    combined_path = os.path.join(parent_directory, relative_str)
+
+    # Resolve the combined path to an absolute path
+    absolute_path = os.path.abspath(combined_path)
+
+    return absolute_path

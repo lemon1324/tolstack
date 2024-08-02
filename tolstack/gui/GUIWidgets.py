@@ -13,6 +13,8 @@ from PyQt5.QtGui import QFontMetrics
 
 from enum import Enum
 
+from tolstack.StackUtils import is_numeric_string
+
 
 class InsertPosition(Enum):
     ADD = 1
@@ -191,6 +193,30 @@ class EditableTableWidget(QTableWidget):
 
         self.setRowHeight(row_position, max_height)
 
+    def sort_by_column(self, column: int, ascending: bool = True):
+        if column < 0 or column >= self.columnCount():
+            raise ValueError(f"Invalid column index for sorting: {column}")
+
+        # Collect all row data
+        all_data = self.get_all_data()
+
+        # Sort the data based on the selected column
+        all_data.sort(key=self.get_sort_key(column), reverse=not ascending)
+
+        # Clear the table and repopulate it with sorted data
+        self.clear_all_data()
+        for data in all_data:
+            self.insert_row(data=data)
+
+    def get_sort_key(self, column: int):
+        """
+        Helper method to provide a sort key. Can be overridden in child classes.
+
+        :param column: The column index to sort by.
+        :return: A function that extracts the sort key from a row of data.
+        """
+        return lambda x: x[column].lower()
+
     def has_key(self, key: str) -> bool:
         """
         Check if any cell in the first column contains the exact string 'key'.
@@ -248,12 +274,19 @@ class EditableConstantWidget(EditableTableWidget):
         for column, width in enumerate(default_column_widths):
             self.setColumnWidth(column, width)
 
+    def get_sort_key(self, column: int):
+        if column == 1:  # For example, if the first column contains numeric values
+            return lambda x: (
+                float(x[column]) if is_numeric_string(x[column]) else x[column]
+            )
+        return super().get_sort_key(column)
+
 
 class EditableDimensionWidget(EditableTableWidget):
     def __init__(self, parent=None):
         super().__init__(0, 7, parent)
 
-        self.DEFAULT_DATA = ["Dxx", 0.0, 0.0, 0.0, "U", "-", "-"]
+        self.DEFAULT_DATA = ["Dxx", 0.0, 0.0, 0.0, "U", "", "-"]
         self.ITEM_NAME = "dimension"
 
         self.setHorizontalHeaderLabels(
@@ -268,6 +301,14 @@ class EditableDimensionWidget(EditableTableWidget):
         default_column_widths = [50, 55, 55, 55, 10, 65, 210]
         for column, width in enumerate(default_column_widths):
             self.setColumnWidth(column, width)
+
+    def get_sort_key(self, column: int):
+        if column in (1, 2, 3):  # numeric columns
+            return lambda x: (
+                float(x[column]) if is_numeric_string(x[column]) else x[column]
+            )
+
+        return super().get_sort_key(column)
 
 
 class EditableExpressionWidget(EditableTableWidget):

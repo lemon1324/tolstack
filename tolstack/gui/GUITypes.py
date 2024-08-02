@@ -16,10 +16,12 @@ class DataWidget(Enum):
 
 class OptionsWidget(Enum):
     FIND_IMAGES = 0
-    UNITS = 1
+    SHOW_PLOTS = 1
     WHERE_USED = 2
     SENSITIVITY = 3
     CONTRIBUTIONS = 4
+    UNITS = 50
+    IMAGE_FOLDER = 100
 
 
 BOOLEAN_OPTIONS = [
