@@ -26,6 +26,7 @@ class OptionsWidget(Enum):
 
 BOOLEAN_OPTIONS = [
     OptionsWidget.FIND_IMAGES,
+    OptionsWidget.SHOW_PLOTS,
     OptionsWidget.WHERE_USED,
     OptionsWidget.SENSITIVITY,
     OptionsWidget.CONTRIBUTIONS,
