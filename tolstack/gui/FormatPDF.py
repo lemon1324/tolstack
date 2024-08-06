@@ -23,6 +23,7 @@ from reportlab.platypus import (
     Table,
     TableStyle,
     KeepTogether,
+    PageBreak,
 )
 
 # Local Application Imports
@@ -69,10 +70,13 @@ def create_content_elements(parser: StackParser, info):
     # TODO: add options flag to enable/disable expression summaries
     append_or_extend(contents, create_expression_summary(parser, info))
 
-    # Details
+    # Details of dimension definitions
     if info[OptionsWidget.FIND_IMAGES]:
+        append_or_extend(contents, PageBreak())
         append_or_extend(contents, create_dimension_details(parser, info))
 
+    # Expressions
+    append_or_extend(contents, PageBreak())
     append_or_extend(contents, create_expression_details(parser, info))
 
     # DEBUG
@@ -307,10 +311,11 @@ def create_dimension_details(parser: StackParser, info):
         image = find_image(image_search_path, PN, 4 * inch)
         if image is None:
             elements.append(
-                Paragraph(f"Warning, no image found in {image_search_path} for {PN}")
+                Paragraph(f"Warning, no image found in {image_search_path} for '{PN}'")
             )
         else:
-            elements.append(image)
+            append_or_extend(elements, image)
+            pass
 
         # Dimension Summary Table
         headers = [["ID", "Nom.", "+", "-", "D", "Note"]]
@@ -339,21 +344,21 @@ def create_dimension_details(parser: StackParser, info):
             ]
             data.append(row)
 
-            # if info[OptionsWidget.WHERE_USED] and D.key in parser.where_used:
-            #     usagetext = f"Used in: {', '.join([f'{expr_key}' for expr_key in sorted(parser.where_used[D.key])])}"
-            #     data.append(
-            #         [
-            #             "",
-            #             "",
-            #             "",
-            #             "",
-            #             "",
-            #             Paragraph(usagetext, PDFStyles["PlainStyle"]),
-            #         ]
-            #     )
-            #     style.add("BOTTOMPADDING", (0, len(data) - 1), (-1, len(data) - 1), 0)
-            #     style.add("BOTTOMPADDING", (0, len(data)), (-1, len(data)), 5)
-            #     style.add("NOSPLIT", (0, len(data) - 1), (-1, len(data)))
+            if info[OptionsWidget.WHERE_USED] and D.key in parser.where_used:
+                usagetext = f"Used in: {', '.join([f'{expr_key}' for expr_key in sorted(parser.where_used[D.key])])}"
+                data.append(
+                    [
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        Paragraph(usagetext, PDFStyles["PlainStyle"]),
+                    ]
+                )
+                style.add("BOTTOMPADDING", (0, len(data) - 1), (-1, len(data) - 1), 0)
+                style.add("BOTTOMPADDING", (0, len(data)), (-1, len(data)), 5)
+                style.add("NOSPLIT", (0, len(data) - 1), (-1, len(data)))
 
         full_data = headers + data
 
@@ -370,10 +375,6 @@ def create_dimension_details(parser: StackParser, info):
         table = Table(full_data, colWidths=col_widths, repeatRows=1)
         table.setStyle(style)
         elements.append(table)
-
-        # iterate over dimensions for that PN, alphabetical
-        # for dkey in sorted(PNs[PN]):
-        #     elements.append(Paragraph(f"PN: {PN}, Dim: {dkey}"))
 
     return elements
 
