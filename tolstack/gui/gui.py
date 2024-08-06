@@ -195,9 +195,14 @@ class MainWindow(QMainWindow):
         # Define a list of tuples with labeled field specifications for checkboxes:
         checkboxes = [
             (
-                "Include dimension images in report",
+                "Include dimension images in PDF reports",
                 QCheckBox,
                 OptionsWidget.FIND_IMAGES,
+            ),
+            (
+                "Show distribution plots for expressions in PDF reports",
+                QCheckBox,
+                OptionsWidget.SHOW_PLOTS,
             ),
         ]
 
