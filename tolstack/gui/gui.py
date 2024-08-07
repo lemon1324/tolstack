@@ -1,12 +1,14 @@
 # Standard Library Imports
+import os
+import re
 import sys
 import traceback
-import re
-import os
 from pathlib import Path
 
 # Third-Party Library Imports
 import markdown
+from PyQt5.QtCore import Qt, QItemSelectionModel, QSettings, QSize, QPoint
+from PyQt5.QtGui import QFont, QKeySequence
 from PyQt5.QtWidgets import (
     QAction,
     QApplication,
@@ -27,15 +29,14 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QFrame,
     QWidget,
+    QProgressBar
 )
-from PyQt5.QtCore import Qt, QItemSelectionModel
-from PyQt5.QtGui import QFont, QKeySequence
 
 # Local Application Imports
-from tolstack.compute_stack import process_info, process_info_to_pdf
 from tolstack.AppConfig import AppConfig
+from tolstack.compute_stack import process_info, process_info_to_pdf
+from tolstack.gui.FileIO import save_to_name, open_from_name
 from tolstack.gui.GUIWidgets import *
-from tolstack.gui.FileIO import save_to_name, open_from_name, get_absolute_path
 from tolstack.gui.GUITypes import *
 from tolstack.gui.Qt5Utils import get_widget_text, set_widget_text
 
@@ -51,7 +52,6 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("tolstack")
-        self.resize(self.WINDOW_WIDTH, self.WINDOW_HEIGHT)
 
         self.widgets = dict()
 
@@ -109,6 +109,15 @@ class MainWindow(QMainWindow):
 
         # Store initial state to prevent spurious unsaved chages on start
         self.store_state_at_save()
+
+        # Load window position
+        self.restore_settings()
+
+        # TODO: move into setup function
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setMaximum(100)
+        self.progress_bar.hide()  # Initially hide the progress bar
+        self.status_bar.addPermanentWidget(self.progress_bar)
 
     def create_analysis_page(self):
         page = QWidget()
@@ -259,13 +268,12 @@ class MainWindow(QMainWindow):
         page.setLayout(options_layout)
         return page
 
-    # should return a QHBoxLayout to add to a Python Qt5 layout
     def setup_image_folder_widget(self):
         layout = QHBoxLayout()
         label = QLabel("Image search folder:")
 
         widget = QLineEdit()
-        widget.setText("/images/")
+        widget.setText("images")
 
         button = QPushButton("Browse")
         button.clicked.connect(self.on_browse_clicked)
@@ -926,11 +934,29 @@ class MainWindow(QMainWindow):
         right_size = self.output_column_width
         self.main_splitter.setSizes([left_size, right_size])
 
+    def restore_settings(self):
+        # Initialize QSettings with organization and application name
+        self.settings = QSettings("lemon1324", "tolstack")
+
+        # Set default values for window size and position
+        default_size = QSize(self.WINDOW_WIDTH, self.WINDOW_HEIGHT)
+        default_position = QPoint(300, 300)
+
+        # Retrieve and set the previous size and position on startup, if available
+        self.resize(self.settings.value("windowSize", default_size, type=QSize))
+        self.move(self.settings.value("windowPosition", default_position, type=QPoint))
+
+    def save_settings(self):
+        # Save the current size and position when closing
+        self.settings.setValue("windowSize", self.size())
+        self.settings.setValue("windowPosition", self.pos())
+
     def resizeEvent(self, event):
         self.keep_output_panel_width_fixed()
         super().resizeEvent(event)
 
     def on_close_event(self, event):
+        will_accept = False
         if self.has_unsaved_changes():
             reply = QMessageBox.question(
                 self,
@@ -942,13 +968,19 @@ class MainWindow(QMainWindow):
 
             if reply == QMessageBox.Save:
                 self.save_inputs()
-                event.accept()
+                will_accept = True
             elif reply == QMessageBox.Discard:
-                event.accept()
+                will_accept = True
             else:
-                event.ignore()
+                will_accept = False
         else:
+            will_accept = True
+
+        if will_accept:
+            self.save_settings()
             event.accept()
+        else:
+            event.ignore()
 
 
 def run_app():

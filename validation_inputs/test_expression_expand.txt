@@ -1,0 +1,20 @@
+*VERSIONINFO, 0.7.4, 3.0
+*OPTIONS,False,False,False,False,False,inches,images
+*ANALYSISINFO
+0,
+1,
+2,
+3,
+*CONSTANTS, VALUE, NOTE
+  PI, 3.1415, Value of pi, the constant
+*DIMENSIONS, NOMINAL, PLUS, MINUS, DISTRIBUTION, PART NUMBER, NOTE
+  D1, 2, .001, -.001, U, , 
+  D2, 3, .005, -.015, U, , 
+  D3, 5, .020, -.000, U, , 
+*EXPRESSIONS, VALUE, LOWER, UPPER, METHOD, NOTE
+  E1, D1, , , W, Expansion of single dimension
+  E2, D1 + 5, , , W, Expansion of single dimension plus scalar
+  E3, D1 - D2, , , W, Expansion of scalar product of dimension.
+  E4, D2*E2, , , W, Expansion of product of dimension and sum.
+  E5, D3-E3, , , W, Expansion of subtraction of difference from dimension.
+  E10, (3*D1+2*D2)/D3, , , W, expansion of composite expression.

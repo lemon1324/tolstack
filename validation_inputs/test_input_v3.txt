@@ -15,7 +15,7 @@ D3,2.02,.05,-5%,U,,Example of a percentage tolerance.
 D4,4,.1,-.1,U,-,-
 D5,2,.05,-.05,U,-,-
 *EXPRESSIONS, VALUE, LOWER, UPPER, METHOD, NOTE
-E1,D1+D1,,.7,W,The description of this expression.
+E1,D1+D1,,.7,W,The description of this expression
 E2,E1 - D2,.1,,W,Composite expression, worst-case.
 E3,E2,.1,,3S,Composite expression, statistical.
 E4,E2,.1,,1S,Composite expression, statistical.

@@ -11,6 +11,8 @@ from tolstack.StackUtils import (
     is_numeric_string,
     get_precedence,
     is_tree_operator,
+    is_higher_precedence,
+    needs_grouping,
 )
 
 from typing import Dict
@@ -225,8 +227,11 @@ class StackExpr:
 
     def _group_child(self, child_str, child_key, parent_key):
         if is_tree_operator(child_key):
-            if get_precedence(child_key) < get_precedence(parent_key):
+            if is_higher_precedence(parent_key, child_key):
                 return f"({child_str})"
+            elif needs_grouping(parent_key, child_key):
+                return f"({child_str})"
+
         return child_str
 
     def _handle_unary_operator(self, operator, operand):

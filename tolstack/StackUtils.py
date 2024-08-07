@@ -68,6 +68,19 @@ def is_tree_operator(token):
     return token in PRECEDENCE
 
 
+# Helper function to make precedence decisions
+def is_higher_precedence(key, other):
+    return PRECEDENCE[key] > PRECEDENCE[other]
+
+
+# Helper function to determine operator commutativity for printing expressions
+# Assumes that other has equal or greater precedence to operator
+def needs_grouping(operator, other):
+    if operator in "-/":
+        return True
+    return False
+
+
 def word_wrap(text, width, hanging_indent=0):
     """
     Wraps a long string based on the specified width and applies hanging indent,

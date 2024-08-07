@@ -1,5 +1,5 @@
-*VERSIONINFO, 0.6.1, 2.0
-*OPTIONS,False,inches,True,False,True
+*VERSIONINFO, 0.7.4, 3.0
+*OPTIONS,False,False,False,False,False,inches,images
 *ANALYSISINFO
 0,test_title
 1,XXX-12345

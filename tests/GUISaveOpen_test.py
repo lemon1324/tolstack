@@ -59,6 +59,8 @@ class TestFileIOFunctions(unittest.TestCase):
             OptionsWidget.WHERE_USED: True,
             OptionsWidget.SENSITIVITY: False,
             OptionsWidget.CONTRIBUTIONS: True,
+            OptionsWidget.SHOW_PLOTS: False,
+            OptionsWidget.IMAGE_FOLDER: "images",
             AnalysisWidget.TITLE: "Title",
             AnalysisWidget.DOCNO: "XXX-00000",
             AnalysisWidget.REVISION: "A",

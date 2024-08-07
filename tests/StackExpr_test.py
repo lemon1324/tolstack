@@ -13,7 +13,7 @@ class TestStackExprDerivatives(unittest.TestCase):
         # D3 = 5
         self.SP = StackParser()
 
-        info = open_from_name("validation_inputs/test_Expression_derivative.txt")
+        info = open_from_name("validation_inputs/test_expression_derivative.txt")
         self.SP.parse(
             constants_data=info[DataWidget.CONSTANTS],
             dimensions_data=info[DataWidget.DIMENSIONS],
@@ -155,3 +155,63 @@ class TestStackExprDerivatives(unittest.TestCase):
         self.assertAlmostEqual(partial, 0)
 
     # TODO: Add derivative tests for the trigonometric functions.
+
+
+class TestStackExprExpand(unittest.TestCase):
+    @classmethod
+    def setUpClass(self) -> None:
+        # D1 = 2
+        # D2 = 3
+        # D3 = 5
+        self.SP = StackParser()
+
+        info = open_from_name("validation_inputs/test_expression_expand.txt")
+        self.SP.parse(
+            constants_data=info[DataWidget.CONSTANTS],
+            dimensions_data=info[DataWidget.DIMENSIONS],
+            expressions_data=info[DataWidget.EXPRESSIONS],
+        )
+
+        self.value_map = self.SP.constants | self.SP.dimensions
+
+    def test_singleDimension(self):
+        # E1 = 'D1'
+        expr = self.SP.expressions["E1"]
+
+        expanded = expr.expand()
+        self.assertEqual(expanded, "D1")
+
+    def test_sum(self):
+        # E2 = 'D1 + 5'
+        expr = self.SP.expressions["E2"]
+
+        expanded = expr.expand()
+        self.assertEqual(expanded, "D1 + 5")
+
+    def test_difference(self):
+        # E3 = 'D1 - D2'
+        expr = self.SP.expressions["E3"]
+
+        expanded = expr.expand()
+        self.assertEqual(expanded, "D1 - D2")
+
+    def test_productExpansion(self):
+        # E4 = 'D2*E2' = 'D2*(D1+5)'
+        expr = self.SP.expressions["E4"]
+
+        expanded = expr.expand()
+        self.assertEqual(expanded, "D2 * (D1 + 5)")
+
+    def test_subtractionOnRight(self):
+        # E5 = 'D3-E3' = 'D3-(D1-D2)'
+        expr = self.SP.expressions["E5"]
+
+        expanded = expr.expand()
+        self.assertEqual(expanded, "D3 - (D1 - D2)")
+
+    def test_compositeExpression(self):
+        # E10 = '(3*D1+2*D2)/D3'
+        expr = self.SP.expressions["E10"]
+
+        expanded = expr.expand()
+        self.assertEqual(expanded, "(3 * D1 + 2 * D2) / D3")

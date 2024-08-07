@@ -433,11 +433,26 @@ def create_expression_details(parser: StackParser, info):
 def create_single_expression(expr: StackExpr, info):
     elements = []
     value = expr.evaluate()
+    image_search_path = get_absolute_path(
+        info["SAVE_FILE"], info[OptionsWidget.IMAGE_FOLDER]
+    )
+
+    # TODO: figure out a way to split short descriptions and long notes. Extra data column?
 
     title = Paragraph(
         f"<b>{expr.key}:</b> {expr.note}", PDFStyles["SectionHeaderStyle"]
     )
     elements.append(title)
+
+    # Add image if it exists
+    images = find_image(image_search_path, expr.key, 4 * inch)
+    if images is None:
+        elements.append(
+            Paragraph(f"Warning, no image found in {image_search_path} for '{expr.key}'")
+        )
+    else:
+        append_or_extend(elements, images)
+        pass
 
     expression = Paragraph(f"{expr.expr}", PDFStyles["PlainStyle"])
     expansion = Paragraph(f"{expr.expand()}", PDFStyles["PlainStyle"])
@@ -981,32 +996,36 @@ def find_image(folder, name, desired_width):
     images = []
 
     def load_image(file_path):
-        if os.path.isfile(file_path):
-            # Open the image using PIL to get dimensions
-            pil_image = PILImage.open(file_path)
-            original_width, original_height = pil_image.size
+        # Open the image using PIL to get dimensions
+        pil_image = PILImage.open(file_path)
+        original_width, original_height = pil_image.size
 
-            # Calculate new height to maintain aspect ratio
-            aspect_ratio = original_height / original_width
-            new_height = int(desired_width * aspect_ratio)
+        # Calculate new height to maintain aspect ratio
+        aspect_ratio = original_height / original_width
+        new_height = int(desired_width * aspect_ratio)
 
-            # Create and return the scaled Image object from reportlab
-            images.append(Image(file_path, width=desired_width, height=new_height))
-            return True
-        return False
+        # Create and return the scaled Image object from reportlab
+        images.append(Image(file_path, width=desired_width, height=new_height))
 
     # Search for the base image without suffix
     for ext in extensions:
         file_path = os.path.join(folder, f"{name}.{ext}")
-        load_image(file_path)
+        if os.path.isfile(file_path):
+            load_image(file_path)
+            break # only grab the first base image found
 
     # Search for alpha-suffixed images (namea.ext, nameb.ext, etc.)
     alphabet = "abcdefghijklmnopqrstuvwxyz"
     for letter in alphabet:
+        found_letter = False
         for ext in extensions:
             suffixed_file_path = os.path.join(folder, f"{name}{letter}.{ext}")
-            if not load_image(suffixed_file_path):
-                break  # stop looking for further suffixes if one is not found
+            if os.path.isfile(suffixed_file_path):
+                load_image(suffixed_file_path)
+                found_letter = True
+                break # only grab first image with this suffix
+        if not found_letter:
+            break  # stop looking for further suffixes if one is not found
 
     # Return None if no image file is found
     return None if not images else images
