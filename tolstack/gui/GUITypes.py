@@ -21,6 +21,8 @@ class OptionsWidget(Enum):
     SENSITIVITY = 3
     CONTRIBUTIONS = 4
     UNITS = 50
+    MAX_IMG_WIDTH = 51
+    MAX_IMG_HEIGHT = 52
     IMAGE_FOLDER = 100
 
 
@@ -36,3 +38,17 @@ BOOLEAN_OPTIONS = [
 # Assume that everything is either a text input supporting text() or is a checkbox supporting isChecked()
 def is_boolean_option(item: Enum):
     return item in BOOLEAN_OPTIONS
+
+
+def get_default_options():
+    return {
+        OptionsWidget.FIND_IMAGES: False,
+        OptionsWidget.SHOW_PLOTS: False,
+        OptionsWidget.WHERE_USED: False,
+        OptionsWidget.SENSITIVITY: False,
+        OptionsWidget.CONTRIBUTIONS: False,
+        OptionsWidget.UNITS: "inches",
+        OptionsWidget.MAX_IMG_WIDTH: "6.5",
+        OptionsWidget.MAX_IMG_HEIGHT: "4",
+        OptionsWidget.IMAGE_FOLDER: "images",
+    }

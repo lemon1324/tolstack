@@ -11,6 +11,8 @@
   D1, 2, .001, -.001, U, , 
   D2, 3, .005, -.015, U, , 
   D3, 5, .020, -.000, U, , 
+  D4, 0.785, .020, -.000, U, , 
+  D5, 30, 1, -1, U, , 
 *EXPRESSIONS, VALUE, LOWER, UPPER, METHOD, NOTE
   E1, D1, , , W, Derivatives of single dimension
   E2, D1 + 5, , , W, Derivatives of single dimension plus scalar
@@ -20,3 +22,9 @@
   E6, 3/D2, , , W, Derivative of scalar over dimension.
   E7, D1/D3, , , W, Derivative of dimension quotient.
   E8, (3*D1+2*D2)/D3, , , W, Derivative of composite expression.
+  E9, sin D4, , , W, Derivative of simple sine.
+  E10, cos D4, , , W, Derivative of simple cosine.
+  E11, tan D4, , , W, Derivative of simple tangent.
+  E12, sind D5, , , W, Derivative of simple sine in degrees.
+  E13, cosd D5, , , W, Derivative of simple cosine in degrees.
+  E14, tand D5, , , W, Derivative of simple tangent in degrees.

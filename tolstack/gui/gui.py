@@ -25,11 +25,12 @@ from PyQt5.QtWidgets import (
     QSplitter,
     QLineEdit,
     QTextEdit,
+    QTextBrowser,
     QVBoxLayout,
     QHBoxLayout,
     QFrame,
     QWidget,
-    QProgressBar
+    QProgressBar,
 )
 
 # Local Application Imports
@@ -117,7 +118,7 @@ class MainWindow(QMainWindow):
         self.progress_bar = QProgressBar(self)
         self.progress_bar.setMaximum(100)
         self.progress_bar.hide()  # Initially hide the progress bar
-        self.status_bar.addPermanentWidget(self.progress_bar)
+        self.statusBar().addPermanentWidget(self.progress_bar)
 
     def create_analysis_page(self):
         page = QWidget()
@@ -218,6 +219,8 @@ class MainWindow(QMainWindow):
         # Define a list of tuples with labeled field specifications:
         fields = [
             ("Units:", QLineEdit, OptionsWidget.UNITS, "inches"),
+            ("Maximum image width (in):", QLineEdit, OptionsWidget.MAX_IMG_WIDTH, "6.5"),
+            ("Maximum image height (in):", QLineEdit, OptionsWidget.MAX_IMG_HEIGHT, "4"),
         ]
 
         # Checkbox Fields
@@ -870,10 +873,11 @@ class MainWindow(QMainWindow):
             layout = QVBoxLayout(dialog)
 
             # Add QTextEdit to handle HTML content
-            text_edit = QTextEdit()
-            text_edit.setReadOnly(True)
-            text_edit.setHtml(html_content)
-            layout.addWidget(text_edit)
+            text_element = QTextBrowser()
+            text_element.setReadOnly(True)
+            text_element.setOpenExternalLinks(True)
+            text_element.setHtml(html_content)
+            layout.addWidget(text_element)
 
             # Add a button to close the dialog
             close_button = QPushButton("Close")

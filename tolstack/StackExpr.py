@@ -198,7 +198,9 @@ class StackExpr:
 
         try:
             operation, derivative_operation = operations[op]
-            if dleft is not None and dright is not None:
+            if (
+                dright is not None
+            ):  # applying derivative operation to unary or binary operator
                 return derivative_operation(left, right, dleft, dright)
             else:
                 return operation(left, right)
@@ -218,18 +220,30 @@ class StackExpr:
         _right = self._format_tree(node.right) if node.right else None
 
         if _left:
-            _left_grouped = self._group_child(_left, node.left.key, node.key)
-            _right_grouped = self._group_child(_right, node.right.key, node.key)
+            _left_grouped = self._group_child(
+                _left, node.left.key, node.key, left_child=True
+            )
+            _right_grouped = self._group_child(
+                _right, node.right.key, node.key, left_child=False
+            )
 
             return f"{_left_grouped} {node.key} {_right_grouped}"
         else:
             return self._handle_unary_operator(node.key, _right)
 
-    def _group_child(self, child_str, child_key, parent_key):
+    def _group_child(self, child_str, child_key, parent_key, left_child=True):
         if is_tree_operator(child_key):
-            if is_higher_precedence(parent_key, child_key):
+            if is_higher_precedence(
+                parent_key, child_key
+            ):  # regardless of position, children with lower priority should be grouped.
                 return f"({child_str})"
-            elif needs_grouping(parent_key, child_key):
+            elif (
+                left_child
+            ):  # child is equal or higher precedence and to left, so doesn't need explicit grouping
+                return child_str
+            elif needs_grouping(
+                parent_key, child_key
+            ):  # child is equal or higher precedence on right, but doesn't distribute/commute appropriately
                 return f"({child_str})"
 
         return child_str

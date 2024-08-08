@@ -55,6 +55,8 @@ class TestFileIOFunctions(unittest.TestCase):
     def setUp(self):
         self.dummy_info = {
             OptionsWidget.UNITS: "inches",
+            OptionsWidget.MAX_IMG_WIDTH: "6.5",
+            OptionsWidget.MAX_IMG_HEIGHT: "4",
             OptionsWidget.FIND_IMAGES: False,
             OptionsWidget.WHERE_USED: True,
             OptionsWidget.SENSITIVITY: False,

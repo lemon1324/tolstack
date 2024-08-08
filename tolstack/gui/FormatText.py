@@ -139,7 +139,7 @@ def format_expression(E: StackExpr):
         f"{7*' '}Value:   {format_shortest(_val.center(E.method),3):>15} {format_shortest(_val.upper_tol(E.method),2)} {format_shortest(_val.lower_tol(E.method),2)}"
     )
 
-    if not isinf(E.lower) and not isinf(E.upper):
+    if not isinf(E.lower) or not isinf(E.upper):
         if not isinf(E.lower):
             _pass = E.lower <= _val.lower(E.method) or isclose(
                 E.lower, _val.lower(E.method), abs_tol=1e-9

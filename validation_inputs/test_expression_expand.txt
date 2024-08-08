@@ -17,4 +17,5 @@
   E3, D1 - D2, , , W, Expansion of scalar product of dimension.
   E4, D2*E2, , , W, Expansion of product of dimension and sum.
   E5, D3-E3, , , W, Expansion of subtraction of difference from dimension.
+  E6, D3-D2-D1, , , W, Expansion of multiple subtractions in series.
   E10, (3*D1+2*D2)/D3, , , W, expansion of composite expression.

@@ -293,6 +293,8 @@ def create_dimension_details(parser: StackParser, info):
     image_search_path = get_absolute_path(
         info["SAVE_FILE"], info[OptionsWidget.IMAGE_FOLDER]
     )
+    max_width = float(info[OptionsWidget.MAX_IMG_WIDTH]) * inch
+    max_height = float(info[OptionsWidget.MAX_IMG_HEIGHT]) * inch
 
     # Identify all unique PNs and associated dimensions
     PNs = defaultdict(set)
@@ -308,14 +310,15 @@ def create_dimension_details(parser: StackParser, info):
         )
 
         # Add image if it exists
-        image = find_image(image_search_path, PN, 4 * inch)
-        if image is None:
-            elements.append(
-                Paragraph(f"Warning, no image found in {image_search_path} for '{PN}'")
-            )
-        else:
+        image = find_image(image_search_path, PN, max_width, max_height)
+        if image is not None:
             append_or_extend(elements, image)
+        else:
             pass
+            # TODO: determine if we want to flag missing images.
+            # elements.append(
+            #     Paragraph(f"Warning, no image found in {image_search_path} for '{expr.key}'")
+            # )
 
         # Dimension Summary Table
         headers = [["ID", "Nom.", "+", "-", "D", "Note"]]
@@ -436,6 +439,8 @@ def create_single_expression(expr: StackExpr, info):
     image_search_path = get_absolute_path(
         info["SAVE_FILE"], info[OptionsWidget.IMAGE_FOLDER]
     )
+    max_width = float(info[OptionsWidget.MAX_IMG_WIDTH]) * inch
+    max_height = float(info[OptionsWidget.MAX_IMG_HEIGHT]) * inch
 
     # TODO: figure out a way to split short descriptions and long notes. Extra data column?
 
@@ -444,15 +449,17 @@ def create_single_expression(expr: StackExpr, info):
     )
     elements.append(title)
 
-    # Add image if it exists
-    images = find_image(image_search_path, expr.key, 4 * inch)
-    if images is None:
-        elements.append(
-            Paragraph(f"Warning, no image found in {image_search_path} for '{expr.key}'")
-        )
-    else:
-        append_or_extend(elements, images)
-        pass
+    # Add image if it exists and image inclusion is enabled
+    if info[OptionsWidget.FIND_IMAGES]:
+        images = find_image(image_search_path, expr.key, max_width, max_height)
+        if images is not None:
+            append_or_extend(elements, images)
+        else:
+            pass
+            # TODO: determine if we want to flag missing images.
+            # elements.append(
+            #     Paragraph(f"Warning, no image found in {image_search_path} for '{expr.key}'")
+            # )
 
     expression = Paragraph(f"{expr.expr}", PDFStyles["PlainStyle"])
     expansion = Paragraph(f"{expr.expand()}", PDFStyles["PlainStyle"])
@@ -476,7 +483,7 @@ def create_single_expression(expr: StackExpr, info):
             spine_linewidth=2,
         )
     else:
-        graph = Paragraph("", PDFStyles("PlainStyle"))
+        graph = Paragraph("", PDFStyles["PlainStyle"])
 
     top_table = [
         ["Expression:", expression, graph],
@@ -989,11 +996,25 @@ def get_lowest_level_folder(filename):
 
 
 # Helper function to search for a .png file and return the image data
-def find_image(folder, name, desired_width):
+def find_image(folder, name, max_width, max_height):
     # Define possible image extensions
     extensions = ["jpg", "jpeg", "png", "gif", "bmp", "tiff"]
 
     images = []
+
+    def get_target_size(orig_w, orig_h, max_w, max_h):
+        orig_ar = orig_h / orig_w
+        max_ar = max_h / max_w
+
+        if orig_ar > max_ar:
+            new_h = max_h
+            new_w = int(max_h / orig_ar)
+
+        else:
+            new_w = max_w
+            new_h = int(max_w * orig_ar)
+
+        return (new_w, new_h)
 
     def load_image(file_path):
         # Open the image using PIL to get dimensions
@@ -1001,18 +1022,19 @@ def find_image(folder, name, desired_width):
         original_width, original_height = pil_image.size
 
         # Calculate new height to maintain aspect ratio
-        aspect_ratio = original_height / original_width
-        new_height = int(desired_width * aspect_ratio)
+        new_width, new_height = get_target_size(
+            original_width, original_height, max_width, max_height
+        )
 
         # Create and return the scaled Image object from reportlab
-        images.append(Image(file_path, width=desired_width, height=new_height))
+        images.append(Image(file_path, width=new_width, height=new_height))
 
     # Search for the base image without suffix
     for ext in extensions:
         file_path = os.path.join(folder, f"{name}.{ext}")
         if os.path.isfile(file_path):
             load_image(file_path)
-            break # only grab the first base image found
+            break  # only grab the first base image found
 
     # Search for alpha-suffixed images (namea.ext, nameb.ext, etc.)
     alphabet = "abcdefghijklmnopqrstuvwxyz"
@@ -1023,7 +1045,7 @@ def find_image(folder, name, desired_width):
             if os.path.isfile(suffixed_file_path):
                 load_image(suffixed_file_path)
                 found_letter = True
-                break # only grab first image with this suffix
+                break  # only grab first image with this suffix
         if not found_letter:
             break  # stop looking for further suffixes if one is not found
 

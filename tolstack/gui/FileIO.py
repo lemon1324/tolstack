@@ -4,6 +4,7 @@ from tolstack.gui.GUITypes import (
     AnalysisWidget,
     OptionsWidget,
     is_boolean_option,
+    get_default_options,
 )
 
 from distutils.util import strtobool
@@ -67,10 +68,18 @@ def open_from_name(file_name):
     else:
         raise ValueError("Attempting to open file but no version information present.")
 
+    default_options = False
     if Version(file_format_version) < Version(AppConfig.file_format_version):
-        raise RuntimeError(
-            "File is from an older version of tolstack, please edit file or manually copy entries."
-        )
+        if file_format_version in ["2.0", "3.0"] and AppConfig.file_format_version in [
+            "3.0",
+            "4.0",
+        ]:
+            default_options = True
+            info.update(get_default_options())
+        else:  # change outside options line, so can't just use defaults
+            raise RuntimeError(
+                "File is from an older version of tolstack, please edit file or manually copy entries."
+            )
 
     # Initialize other sections
     analysis_info = {}
@@ -86,7 +95,7 @@ def open_from_name(file_name):
 
         # TODO: add possibility for comment lines in an input file?
 
-        if line.startswith("*OPTIONS"):
+        if line.startswith("*OPTIONS") and not default_options:
             options = line.replace("*OPTIONS,", "").split(
                 ",", maxsplit=len(OptionsWidget) - 1
             )

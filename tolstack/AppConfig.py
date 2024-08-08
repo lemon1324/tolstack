@@ -3,8 +3,8 @@ import sys
 
 
 class AppConfig:
-    app_version = "0.7.4"
-    file_format_version = "3.0"
+    app_version = "0.8.0"
+    file_format_version = "4.0"
 
     if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
         bundle_dir = Path(sys._MEIPASS)
