@@ -1,0 +1,77 @@
+name: Build and Release on Windows
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.1.7
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Python
+        uses: actions/setup-python@v5.1.1
+        with:
+          python-version: "3.11" # Specify the Python version you want to use
+
+      - name: Install base dependencies
+        run: |
+          pip install toml pyinstaller
+
+      - name: Parse version from pyproject.toml
+        id: parse_version
+        run: |
+          python -c 'from build_tools.build import get_version; print(f"::set-output name=VERSION::{get_version()}")'
+
+      - name: Check if version already exists as a tag
+        uses: mukunku/tag-exists-action@v1.6.0
+        id: version_check
+        with:
+          tag: "v${{ steps.parse_version.outputs.VERSION }}"
+
+      - name: Install requirements.txt
+        if: steps.version_check.outputs.exists == 'false'
+        run: |
+          pip install -r build_tools/requirements.txt
+
+      - name: Build executable with PyInstaller
+        if: steps.version_check.outputs.exists == 'false'
+        run: |
+          python build_tools/build.py
+
+      - name: Create and push tag
+        if: steps.version_check.outputs.exists == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag v${{ steps.parse_version.outputs.VERSION }}
+          git push origin v${{ steps.parse_version.outputs.VERSION }}
+
+      - name: Zip the executable
+        if: steps.version_check.outputs.exists == 'false'
+        env:
+          VERSION: ${{ steps.parse_version.outputs.version }}
+        run: |
+          Compress-Archive -Path dist\tolstack\* -DestinationPath tolstack_v${{ steps.parse_version.outputs.VERSION }}.zip
+        shell: pwsh
+
+      - name: Create GitHub Release
+        if: steps.version_check.outputs.exists == 'false'
+        uses: ncipollo/release-action@v1.14.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: v${{ steps.parse_version.outputs.VERSION }}
+          name: Release v${{ steps.parse_version.outputs.VERSION }}
+          artifacts: tolstack_v${{ steps.parse_version.outputs.VERSION }}.zip
+          replacesArtifacts: true
