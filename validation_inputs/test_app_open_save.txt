@@ -1,4 +1,4 @@
-*VERSIONINFO, 0.8.2, 4.0
+*VERSIONINFO, 0.8.3, 4.0
 *OPTIONS,False,False,False,False,False,inches,6.5,4,images
 *ANALYSISINFO
 0,test_title

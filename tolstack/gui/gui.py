@@ -4,11 +4,12 @@ import re
 import sys
 import traceback
 from pathlib import Path
+import logging
 
 # Third-Party Library Imports
 import markdown
 from PyQt5.QtCore import Qt, QItemSelectionModel, QSettings, QSize, QPoint, QTimer
-from PyQt5.QtGui import QFont, QKeySequence, QPixmap
+from PyQt5.QtGui import QFont, QKeySequence, QPixmap, QFontDatabase
 from PyQt5.QtWidgets import (
     QAction,
     QApplication,
@@ -52,6 +53,8 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+
+        self.load_fonts()
 
         self.setWindowTitle("tolstack")
 
@@ -120,6 +123,24 @@ class MainWindow(QMainWindow):
         self.progress_bar.setMaximum(100)
         self.progress_bar.hide()  # Initially hide the progress bar
         self.statusBar().addPermanentWidget(self.progress_bar)
+
+    def load_fonts(self):
+        # Add fonts to database
+        for p in AppConfig.paths_to_fonts:
+            font_id = QFontDatabase.addApplicationFont(str(p))
+            if font_id == -1:
+                logging.warning(f"Could not load font from {p}.")
+
+        base = QFontDatabase.applicationFontFamilies(0)
+        self.default_font = QFont(base[0], 10)
+        QApplication.setFont(self.default_font)
+
+        code = QFontDatabase.applicationFontFamilies(2)
+        print(code)
+        self.test_display_font = QFont(code[0])
+        self.test_display_font.setStyleHint(QFont.Monospace)
+        self.test_display_font.setFixedPitch(True)
+        self.test_display_font.setPointSize(10)
 
     def create_analysis_page(self):
         page = QWidget()
@@ -372,11 +393,7 @@ class MainWindow(QMainWindow):
         layout.addLayout(checkbox_layout)  # Add the checkbox layout to the right layout
 
         # Text box
-        fixed_font = QFont("Consolas")
-        fixed_font.setStyleHint(QFont.Monospace)
-        fixed_font.setFixedPitch(True)
-        fixed_font.setPointSize(10)
-        self.text_edit = EmWidthTextEdit(fixed_font, 85)
+        self.text_edit = EmWidthTextEdit(self.test_display_font, 85)
         layout.addWidget(self.text_edit)
 
         widget = QWidget()
