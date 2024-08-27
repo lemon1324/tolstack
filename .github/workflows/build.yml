@@ -30,7 +30,9 @@ jobs:
       - name: Parse version from pyproject.toml
         id: parse_version
         run: |
-          python -c 'from build_tools.build import get_version; print(f"::set-output name=VERSION::{get_version()}")'
+          $version = python -c 'from build_tools.build import get_version; print(get_version())'
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Check if version already exists as a tag
         uses: mukunku/tag-exists-action@v1.6.0
@@ -42,10 +44,6 @@ jobs:
         if: steps.version_check.outputs.exists == 'false'
         run: |
           pip install -r build_tools/requirements.txt
-
-      - name: Install local package tolstack
-        run: |
-          pip install ./tolstack
 
       - name: Build executable with PyInstaller
         if: steps.version_check.outputs.exists == 'false'

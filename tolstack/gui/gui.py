@@ -4,7 +4,10 @@ import re
 import sys
 import traceback
 from pathlib import Path
+
 import logging
+
+logging.basicConfig(filename="error.log", level=logging.ERROR, filemode="a")
 
 # Third-Party Library Imports
 import markdown
@@ -34,6 +37,7 @@ from PyQt5.QtWidgets import (
     QWidget,
     QProgressBar,
 )
+
 
 # Local Application Imports
 from tolstack.AppConfig import AppConfig
@@ -136,7 +140,6 @@ class MainWindow(QMainWindow):
         QApplication.setFont(self.default_font)
 
         code = QFontDatabase.applicationFontFamilies(2)
-        print(code)
         self.test_display_font = QFont(code[0])
         self.test_display_font.setStyleHint(QFont.Monospace)
         self.test_display_font.setFixedPitch(True)
@@ -1018,16 +1021,16 @@ class MainWindow(QMainWindow):
 def run_app():
     app = QApplication(sys.argv)
 
-    splash_pix = QPixmap(
-        str(AppConfig.path_to_splash)
-    )  # Path to your splash screen image
-    splash = QSplashScreen(splash_pix, Qt.WindowStaysOnTopHint)
-    splash.show()
-
     window = MainWindow()
+    window.show()
 
-    QTimer.singleShot(2000, splash.close)
-    QTimer.singleShot(2000, window.show)
+    try:
+        import pyi_splash # type: ignore
+
+        if pyi_splash.is_alive():
+            pyi_splash.close()
+    except Exception as e:
+        logging.exception(e)
 
     sys.exit(app.exec_())
 
