@@ -1025,7 +1025,7 @@ def run_app():
     window.show()
 
     try:
-        import pyi_splash
+        import pyi_splash # type: ignore
 
         if pyi_splash.is_alive():
             pyi_splash.close()

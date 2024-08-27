@@ -1,6 +1,7 @@
 import PyInstaller.__main__
 import toml
 import sys
+import os
 
 from tolstack.AppConfig import AppConfig
 
@@ -15,6 +16,15 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "-v":
         print(get_version())
     else:
+        print(f"  cwd: {os.getcwd()}")
+        print("PYTHONPATH:")
+        print("\n".join(sys.path))
+        print("")
+
+        current_dir = os.getcwd()
+        if current_dir not in sys.path:
+            sys.path.insert(0, current_dir)
+
         PyInstaller.__main__.run(
             [
                 "tolstack/main.py",
