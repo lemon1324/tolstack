@@ -26,6 +26,9 @@ jobs:
         run: |
           Get-Location | Write-Output
           python -c "import sys; print('\n'.join(sys.path))"
+          echo "PYTHONPATH=$PYTHONPATH:/path/to/your/module" >> $GITHUB_ENV
+          Get-Location | Write-Output
+          python -c "import sys; print('\n'.join(sys.path))"
       - name: Install base dependencies
         run: |
           pip install toml pyinstaller
