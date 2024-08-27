@@ -3,8 +3,6 @@ import toml
 import sys
 import os
 
-from tolstack.AppConfig import AppConfig
-
 
 def get_version():
     with open("pyproject.toml", "r") as f:
@@ -24,6 +22,8 @@ if __name__ == "__main__":
         current_dir = os.getcwd()
         if current_dir not in sys.path:
             sys.path.insert(0, current_dir)
+
+        from tolstack.AppConfig import AppConfig
 
         PyInstaller.__main__.run(
             [
