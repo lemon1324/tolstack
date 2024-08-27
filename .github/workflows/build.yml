@@ -24,7 +24,6 @@ jobs:
           python-version: "3.11" # Specify the Python version you want to use
       - name: DEBUG
         run: |
-          run: |
           Get Location | Write-Output
           $env:PYTHONPATH
           Write-Output "::debug::$Env:PYTHONPATH"
