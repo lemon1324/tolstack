@@ -24,7 +24,7 @@ jobs:
           python-version: "3.11" # Specify the Python version you want to use
       - name: DEBUG
         run: |
-          Get Location | Write-Output
+          Get-Location | Write-Output
           $env:PYTHONPATH
           Write-Output "::debug::$Env:PYTHONPATH"
           "PYTHONPATH=$Env:PYTHONPATH;.\" | Out-File -FilePath $env:GITHUB_ENV -Append
