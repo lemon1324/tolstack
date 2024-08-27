@@ -43,10 +43,6 @@ jobs:
         run: |
           pip install -r build_tools/requirements.txt
 
-      - name: Install local package tolstack
-        run: |
-          pip install ./tolstack
-
       - name: Build executable with PyInstaller
         if: steps.version_check.outputs.exists == 'false'
         run: |

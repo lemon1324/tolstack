@@ -2,6 +2,8 @@ import PyInstaller.__main__
 import toml
 import sys
 
+from tolstack.AppConfig import AppConfig
+
 
 def get_version():
     with open("pyproject.toml", "r") as f:
@@ -19,6 +21,8 @@ if __name__ == "__main__":
                 "--onedir",
                 "--windowed",
                 "--name=tolstack",
-                "--collect-all=tolstack",
+                "--additional-hooks-dir=build_tools/pyinstaller-hooks",
+                f"--splash=tolstack/content/splash_v{AppConfig.app_version}.png",
+                "--noconfirm",
             ]
         )
