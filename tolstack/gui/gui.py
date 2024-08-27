@@ -7,8 +7,8 @@ from pathlib import Path
 
 # Third-Party Library Imports
 import markdown
-from PyQt5.QtCore import Qt, QItemSelectionModel, QSettings, QSize, QPoint
-from PyQt5.QtGui import QFont, QKeySequence
+from PyQt5.QtCore import Qt, QItemSelectionModel, QSettings, QSize, QPoint, QTimer
+from PyQt5.QtGui import QFont, QKeySequence, QPixmap
 from PyQt5.QtWidgets import (
     QAction,
     QApplication,
@@ -17,6 +17,7 @@ from PyQt5.QtWidgets import (
     QFileDialog,
     QLabel,
     QMainWindow,
+    QSplashScreen,
     QTabWidget,
     QMessageBox,
     QPushButton,
@@ -219,8 +220,18 @@ class MainWindow(QMainWindow):
         # Define a list of tuples with labeled field specifications:
         fields = [
             ("Units:", QLineEdit, OptionsWidget.UNITS, "inches"),
-            ("Maximum image width (in):", QLineEdit, OptionsWidget.MAX_IMG_WIDTH, "6.5"),
-            ("Maximum image height (in):", QLineEdit, OptionsWidget.MAX_IMG_HEIGHT, "4"),
+            (
+                "Maximum image width (in):",
+                QLineEdit,
+                OptionsWidget.MAX_IMG_WIDTH,
+                "6.5",
+            ),
+            (
+                "Maximum image height (in):",
+                QLineEdit,
+                OptionsWidget.MAX_IMG_HEIGHT,
+                "4",
+            ),
         ]
 
         # Checkbox Fields
@@ -989,8 +1000,18 @@ class MainWindow(QMainWindow):
 
 def run_app():
     app = QApplication(sys.argv)
+
+    splash_pix = QPixmap(
+        str(AppConfig.path_to_splash)
+    )  # Path to your splash screen image
+    splash = QSplashScreen(splash_pix, Qt.WindowStaysOnTopHint)
+    splash.show()
+
     window = MainWindow()
-    window.show()
+
+    QTimer.singleShot(2000, splash.close)
+    QTimer.singleShot(2000, window.show)
+
     sys.exit(app.exec_())
 
 
