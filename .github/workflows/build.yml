@@ -46,6 +46,8 @@ jobs:
       - name: Build executable with PyInstaller
         if: steps.version_check.outputs.exists == 'false'
         run: |
+          Get-Location
+          $env:PYTHONPATH
           Write-Output "::debug::$Env:PYTHONPATH"
           "PYTHONPATH=$Env:PYTHONPATH;.\" | Out-File -FilePath $env:GITHUB_ENV -Append
           python build_tools/build.py
