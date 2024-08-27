@@ -25,10 +25,9 @@ jobs:
       - name: DEBUG
         run: |
           Get-Location | Write-Output
-          $env:PYTHONPATH
-          Write-Output "::debug::$Env:PYTHONPATH"
+          Write-Output "PYTHONPATH: $env:PYTHONPATH"
           "PYTHONPATH=$Env:PYTHONPATH;.\" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo $env:PYTHONPATH
+          Write-Output "PYTHONPATH: $env:PYTHONPATH"
       - name: Install base dependencies
         run: |
           pip install toml pyinstaller
