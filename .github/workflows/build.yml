@@ -32,6 +32,7 @@ jobs:
         run: |
           $version = python -c 'from build_tools.build import get_version; print(get_version())'
           "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Output "version: $env:VERSION"
 
       - name: Check if version already exists as a tag
         uses: mukunku/tag-exists-action@v1.6.0
