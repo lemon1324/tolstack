@@ -3,7 +3,9 @@ import os
 import re
 import sys
 import traceback
+import requests
 from pathlib import Path
+from packaging.version import Version
 
 import logging
 
@@ -491,6 +493,12 @@ class MainWindow(QMainWindow):
         help_options = [
             ("Help", "F1", "Show help", self.display_help),
             ("About", "", "About this application", self.display_about),
+            (
+                "Check for updates",
+                "",
+                "Check for software updates",
+                self.check_for_updates,
+            ),
         ]
 
         menus = {"File": file_options, "Edit": edit_options, "Help": help_options}
@@ -955,6 +963,49 @@ class MainWindow(QMainWindow):
         msg_box.setText(text)
         msg_box.setStandardButtons(QMessageBox.Ok)
         msg_box.exec_()
+
+    def check_for_updates(self):
+        """Check for updates from the GitHub repository."""
+        latest_release_api_url = (
+            "https://api.github.com/repos/lemon1324/tolstack/releases/latest"
+        )
+
+        try:
+            response = requests.get(latest_release_api_url)
+            response.raise_for_status()  # Raise HTTPError for bad responses (4xx and 5xx)
+
+            latest_release_info = response.json()
+            latest_version = latest_release_info["tag_name"]
+
+            current_version = AppConfig.app_version
+
+            if self.is_newer_version(latest_version, current_version):
+                message_box = QMessageBox(self)
+                message_box.setTextFormat(Qt.RichText)
+                message_box.setWindowTitle("Update Available")
+                message_box.setText(
+                    f"A new version ({latest_version}) is available.<br>"
+                    f"You are currently using version {current_version}.<br>"
+                    'Please visit the <a href="https://github.com/lemon1324/tolstack/releases/latest">GitHub repository</a> '
+                    "to download the latest version."
+                )
+                message_box.exec_()
+            else:
+                QMessageBox.information(
+                    self,
+                    "Up to Date",
+                    f"You are using the latest version ({current_version}).",
+                )
+        except Exception as e:
+            QMessageBox.warning(
+                self, "Error", f"Failed to check for updates:\n{str(e)}"
+            )
+
+    def is_newer_version(self, new_version, current_version):
+        new_version = new_version.strip("v")
+        current_version = current_version.strip("v")
+
+        return Version(new_version) > Version(current_version)
 
     def switch_focus_to(self, widget_type):
         """Switch focus to a specific widget based on WidgetType."""
