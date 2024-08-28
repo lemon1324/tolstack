@@ -48,7 +48,7 @@ def get_default_options():
         OptionsWidget.SENSITIVITY: False,
         OptionsWidget.CONTRIBUTIONS: False,
         OptionsWidget.UNITS: "inches",
-        OptionsWidget.MAX_IMG_WIDTH: "6.5",
+        OptionsWidget.MAX_IMG_WIDTH: "6",
         OptionsWidget.MAX_IMG_HEIGHT: "4",
         OptionsWidget.IMAGE_FOLDER: "images",
     }

@@ -122,11 +122,8 @@ class MainWindow(QMainWindow):
         # Load window position
         self.restore_settings()
 
-        # TODO: move into setup function
-        self.progress_bar = QProgressBar(self)
-        self.progress_bar.setMaximum(100)
-        self.progress_bar.hide()  # Initially hide the progress bar
-        self.statusBar().addPermanentWidget(self.progress_bar)
+        # Initialize progress bar for use during long-running operations.
+        self.setup_progress_bar()
 
     def load_fonts(self):
         # Add fonts to database
@@ -248,7 +245,7 @@ class MainWindow(QMainWindow):
                 "Maximum image width (in):",
                 QLineEdit,
                 OptionsWidget.MAX_IMG_WIDTH,
-                "6.5",
+                "6",
             ),
             (
                 "Maximum image height (in):",
@@ -515,6 +512,12 @@ class MainWindow(QMainWindow):
 
         return
 
+    def setup_progress_bar(self):
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setMaximum(100)
+        self.progress_bar.hide()  # Initially hide the progress bar
+        self.statusBar().addPermanentWidget(self.progress_bar)
+
     def add_item(
         self, widget: EditableTableWidget, position: InsertPosition = InsertPosition.ADD
     ):
@@ -665,13 +668,14 @@ class MainWindow(QMainWindow):
                 self.widgets[DataWidget.CONSTANTS].currentItem()
                 or self.widgets[DataWidget.DIMENSIONS].currentItem()
             )
+
         if original_item:
             row = original_item.row()
             widget = original_item.tableWidget()
             original_item = widget.item(row, 0)
             old_name_input.setText(original_item.text())
 
-            new_name_input.setFocus()  # place cursor in logcal spot when pre-filling
+            new_name_input.setFocus()  # place cursor in logical spot when pre-filling
 
         if dialog.exec_() == QDialog.Accepted:
             old_name = old_name_input.text().strip()
@@ -1025,7 +1029,7 @@ def run_app():
     window.show()
 
     try:
-        import pyi_splash # type: ignore
+        import pyi_splash  # type: ignore
 
         if pyi_splash.is_alive():
             pyi_splash.close()

@@ -314,11 +314,7 @@ def create_dimension_details(parser: StackParser, info):
         if image is not None:
             append_or_extend(elements, image)
         else:
-            pass
-            # TODO: determine if we want to flag missing images.
-            # elements.append(
-            #     Paragraph(f"Warning, no image found in {image_search_path} for '{expr.key}'")
-            # )
+            pass # Just skip image if not present
 
         # Dimension Summary Table
         headers = [["ID", "Nom.", "+", "-", "D", "Note"]]
@@ -442,7 +438,7 @@ def create_single_expression(expr: StackExpr, info):
     max_width = float(info[OptionsWidget.MAX_IMG_WIDTH]) * inch
     max_height = float(info[OptionsWidget.MAX_IMG_HEIGHT]) * inch
 
-    # TODO: figure out a way to split short descriptions and long notes. Extra data column?
+    # TODO: https://github.com/lemon1324/tolstack/issues/2
 
     title = Paragraph(
         f"<b>{expr.key}:</b> {expr.note}", PDFStyles["SectionHeaderStyle"]
@@ -455,11 +451,7 @@ def create_single_expression(expr: StackExpr, info):
         if images is not None:
             append_or_extend(elements, images)
         else:
-            pass
-            # TODO: determine if we want to flag missing images.
-            # elements.append(
-            #     Paragraph(f"Warning, no image found in {image_search_path} for '{expr.key}'")
-            # )
+            pass # Just skip image if not present
 
     expression = Paragraph(f"{expr.expr}", PDFStyles["PlainStyle"])
     expansion = Paragraph(f"{expr.expand()}", PDFStyles["PlainStyle"])
@@ -816,7 +808,7 @@ def generate_dist_plot(
     # Labeling the vertical lines
 
     # Adjust layout to ensure the labels are not cut off
-    # TODO: See if subplots_adjust allows all the plots to render at the same size
+    # TODO: https://github.com/lemon1324/tolstack/issues/1
     plt.tight_layout(pad=1.5)
 
     # Saving the plot to a BytesIO buffer with higher DPI for better quality

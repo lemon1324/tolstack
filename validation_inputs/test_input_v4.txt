@@ -1,5 +1,5 @@
 *VERSIONINFO, 0.8.0, 4.0
-*OPTIONS,True,True,False,False,True,inches,6.5,3,images
+*OPTIONS,True,True,False,False,True,inches,6,3,images
 *ANALYSISINFO
 0,The Test Document Title
 1,XXX-12345
