@@ -3,7 +3,7 @@ import sys
 
 
 class AppConfig:
-    app_version = "0.8.3"
+    app_version = "0.8.4"
     file_format_version = "4.0"
 
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):

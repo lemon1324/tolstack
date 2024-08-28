@@ -668,6 +668,8 @@ class MainWindow(QMainWindow):
                 self.widgets[DataWidget.CONSTANTS].currentItem()
                 or self.widgets[DataWidget.DIMENSIONS].currentItem()
             )
+        else:
+            original_item = None
 
         if original_item:
             row = original_item.row()
