@@ -16,11 +16,11 @@ matplotlib = "^3.9"
 reportlab = "^4.2.2"
 requests = "^2.32.3"
 
-
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.4"
 pytest = "^8.2.2"
 toml = "^0.10.2"
+pyinstaller = "^6.10.0"
 
 [build-system]
 requires = ["poetry-core"]
