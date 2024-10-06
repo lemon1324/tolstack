@@ -1,20 +1,21 @@
 # tolstack
 
-*This readme was last updated for application version 0.7.4.*
+*This readme was last updated for application version 0.8.7.*
 
 # Introduction
 
-`tolstack` is designed to assist with tolerance analysis for engineering design. It is more than a 1D tool, as it implements functions beyond addition and subtraction, but does not support direct analysis of geometric dimensioning and tolerancing.
+`tolstack` is designed to assist with tolerance analysis for engineering design. It is more than a 1D tool, as it implements functions beyond addition and subtraction, but does not support direct analysis of geometric dimensioning and tolerancing. Geometric tolerances can still be analyzed by refactoring into equivalent mathematical expressions; see the included example files.
 
 # Features
 
 - Allows definition of dimensions with uniform or normal distributions.
 - Associates part numbers and comments to dimensions for traceability.
-- Implements addition, subtraction, multiplication, division, and exponentiation.
+- Implements basic mathematical operations including addition, subtraction, multiplication, division, and exponentiation.
+- Implements trigonometric functions, including degree variants.
 - Expression parser also handles parentheses and unary negation.
 - Expressions can be evaluated in either worst-case or statistical modes against lower and/or upper bounds.
 - Supports sensitivity analysis for nominal values, and contribution analysis for tolerances.
-- Allows output to PDF and automatically includes images visually showing dimensions on parts and expressions.
+- Allows output to PDF and automatically includes provided images to dimensions on parts and expressions.
 
 # Using the Application
 
@@ -98,7 +99,7 @@ Sorting is also provided to ease table organization.  Note that since expression
 
 - **How do I analyze geometric tolerances?**
 
-  As geometric tolerances generally require full knowledge of the geometry to analyze, they are not currently set up to be natively analyzed in `tolstack`.
+  As geometric tolerances generally require knowledge of the part geometry to analyze, they are not currently set up to be natively analyzed in `tolstack`.
 
   However, as `tolstack` implements mathematical operations beyond addition, many geometric tolerances can be analyzed by decomposing them to equivalent +/- tolerances and composing them.
 
