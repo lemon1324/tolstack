@@ -7,9 +7,7 @@ import requests
 from pathlib import Path
 from packaging.version import Version
 
-import logging
-
-logging.basicConfig(filename="error.log", level=logging.ERROR, filemode="a")
+import logging 
 
 # Third-Party Library Imports
 import markdown
@@ -1086,6 +1084,8 @@ def run_app():
 
         if pyi_splash.is_alive():
             pyi_splash.close()
+    except ModuleNotFoundError as m:
+        pass # ignore splash not found if run as a script
     except Exception as e:
         logging.exception(e)
 

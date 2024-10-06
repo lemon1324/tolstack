@@ -24,10 +24,11 @@ RPN_UNARY_OPERATORS = ["u-"]
 SYMBOLS = "(" + OPERATORS
 
 # Define a regex pattern for operators, parentheses, and operands
-TOKEN_RE = r"(\b\w+\b|[()+\-*/^])"
+# Allow bare numbers, numbers with a decimal place, and numbers with a leading decimal.
+TOKEN_RE = r"(\d*\.?\d+[eE][+-]?\d+|\d*\.?\d+|\w+|[()+\-*/^])"
 
 # Define a regex pattern for variables (dimensions, expressions, etc.)
-VARIABLE_RE = r"\w+"
+VARIABLE_RE = r"(\d*\.?\d+[eE][+-]?\d+|\d*\.?\d+|\w+)"
 
 
 # Given an expression containing values and operators, tokenize it, stripping whitespace
@@ -53,8 +54,8 @@ def is_unary_operator(token):
     return token in RPN_UNARY_OPERATORS or token in TRIG_OPERATORS
 
 
-# determines if a token is a variable in an infix context
-def is_variable(token):
+# determines if a token is a variable or numeric constant in an infix context
+def is_variable_or_numeric(token):
     return re.fullmatch(VARIABLE_RE, token) and token not in TRIG_OPERATORS
 
 
@@ -201,7 +202,7 @@ def infix_to_rpn(expression):
     previous_token = None  # To help with identifying unary operators
 
     for token in tokens:
-        if is_variable(token):  # Operand (number or variable)
+        if is_variable_or_numeric(token):  # Operand (number or variable)
             output.append(token)
         elif is_operator(token):  # Operator
             if can_be_unary_operator(token) and (
