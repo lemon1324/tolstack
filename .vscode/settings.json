@@ -18,6 +18,10 @@
         "latex",
         "plaintext"
     ],
+    "files.exclude": {
+        "": true,
+        "**/.git": false
+    },
     
     
 }
