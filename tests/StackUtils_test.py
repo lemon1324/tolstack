@@ -52,14 +52,14 @@ class TestExpressionFunctions(unittest.TestCase):
         self.assertFalse(is_unary_operator(token))
 
     def test_is_variable(self):
-        self.assertTrue(is_variable("D1"))
-        self.assertTrue(is_variable("E13"))
-        self.assertTrue(is_variable("LONG_NAME_EXPRESSION"))
-        self.assertFalse(is_variable("+="))
-        self.assertFalse(is_variable("sin"))
-        self.assertFalse(is_variable("*"))
+        self.assertTrue(is_variable_or_numeric("D1"))
+        self.assertTrue(is_variable_or_numeric("E13"))
+        self.assertTrue(is_variable_or_numeric("LONG_NAME_EXPRESSION"))
+        self.assertFalse(is_variable_or_numeric("+="))
+        self.assertFalse(is_variable_or_numeric("sin"))
+        self.assertFalse(is_variable_or_numeric("*"))
         self.assertFalse(
-            is_variable("u-")
+            is_variable_or_numeric("u-")
         )  # unary operator encoding is not a variable in RPN expressions
 
     def test_get_precedence(self):
@@ -105,9 +105,11 @@ class TestParseStringToNumeric(unittest.TestCase):
         self.assertAlmostEqual(parse_string_to_numeric("-123"), -123.0)
         self.assertAlmostEqual(parse_string_to_numeric("-123.45"), -123.45)
         self.assertAlmostEqual(parse_string_to_numeric("0"), 0.0)
-        self.assertAlmostEqual(
-            parse_string_to_numeric("1e3"), 1000.0
-        )  # scientific notation
+        self.assertAlmostEqual(parse_string_to_numeric(".005"), 0.005)
+
+        # scientific notation
+        self.assertAlmostEqual(parse_string_to_numeric("1e3"), 1000.0)
+        self.assertAlmostEqual(parse_string_to_numeric(".5e-5"), 0.000005)
 
     def test_invalid_numbers(self):
         self.assertIsNone(parse_string_to_numeric("abc"))
@@ -150,11 +152,76 @@ class TestPercentToFraction(unittest.TestCase):
         self.assertIsNone(percent_to_fraction("%%"))
 
 
+class TestTokenizeFunction(unittest.TestCase):
+
+    def test_simple_expression(self):
+        expression = "2 + 3 * 4"
+        expected_tokens = ["2", "+", "3", "*", "4"]
+        self.assertEqual(tokenize(expression), expected_tokens)
+
+    def test_decimal_numbers(self):
+        expression = "0.5 * .005"
+        expected_tokens = ["0.5", "*", ".005"]
+        self.assertEqual(tokenize(expression), expected_tokens)
+
+    def test_scientific_notation(self):
+        expression = "D1 - .5e-5"
+        expected_tokens = ["D1", "-", ".5e-5"]
+        self.assertEqual(tokenize(expression), expected_tokens)
+
+    def test_mixed_expression(self):
+        expression = "a + 0.5 - b / .005"
+        expected_tokens = ["a", "+", "0.5", "-", "b", "/", ".005"]
+        self.assertEqual(tokenize(expression), expected_tokens)
+
+    def test_with_parentheses(self):
+        expression = "(2 + 3) * (4 - 5)"
+        expected_tokens = ["(", "2", "+", "3", ")", "*", "(", "4", "-", "5", ")"]
+        self.assertEqual(tokenize(expression), expected_tokens)
+
+    def test_complex_expression(self):
+        expression = "12.34 + var_name - (5/6) ^ 2"
+        expected_tokens = [
+            "12.34",
+            "+",
+            "var_name",
+            "-",
+            "(",
+            "5",
+            "/",
+            "6",
+            ")",
+            "^",
+            "2",
+        ]
+        self.assertEqual(tokenize(expression), expected_tokens)
+
+
 class TestInfixToRPN(unittest.TestCase):
 
     def test_simple_addition(self):
         expression = "3 + 4"
         expected_output = ["3", "4", "+"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_leading_zero(self):
+        expression = "3 + 0.4"
+        expected_output = ["3", "0.4", "+"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_leading_decimal(self):
+        expression = "3 + .004"
+        expected_output = ["3", ".004", "+"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_scientific_notation(self):
+        expression = "3 + -5e6"
+        expected_output = ["3", "5e6", "u-", "+"]
+        self.assertEqual(infix_to_rpn(expression), expected_output)
+
+    def test_scientific_notation_negative_exponent(self):
+        expression = "3 + 5E-6"
+        expected_output = ["3", "5E-6", "+"]
         self.assertEqual(infix_to_rpn(expression), expected_output)
 
     def test_precedence(self):
@@ -169,7 +236,7 @@ class TestInfixToRPN(unittest.TestCase):
 
     def test_complex_expression(self):
         expression = "3 + 4 * ( 2 - 1 ) / 5 ^ 2"
-        expected_output = ['3', '4', '2', '1', '-', '*', '5', '2', '^', '/', '+']
+        expected_output = ["3", "4", "2", "1", "-", "*", "5", "2", "^", "/", "+"]
         self.assertEqual(infix_to_rpn(expression), expected_output)
 
     def test_complex_expression_2(self):

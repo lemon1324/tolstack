@@ -8,7 +8,7 @@ def main():
     
     # Define file paths
     poetry_lock = pathlib.Path("poetry.lock")
-    requirements_txt = pathlib.Path("requirements.txt")
+    requirements_txt = pathlib.Path("build_tools/requirements.txt")
 
     # Check if both files exist
     if not poetry_lock.exists() or not requirements_txt.exists():
@@ -25,10 +25,17 @@ def main():
         try:
             # Use subprocess.run with `shell=False` for cross-platform compatibility
             subprocess.run(
-                [sys.executable, "-m", "poetry", "export", "-f", "requirements.txt", "--output", "requirements.txt"],
+                ["poetry", "export", "-f", "requirements.txt", "--output", "build_tools/requirements.txt"],
                 check=True
             )
             print("requirements.txt updated successfully.")
+            
+            # Stage the new file since we assume it's good.
+            subprocess.run(
+                ["git", "add", "build_tools/requirements.txt"],
+                check=True
+            )
+            print("File added to git staging successfully.")
         except subprocess.CalledProcessError as e:
             print(f"Error occurred while exporting requirements.txt: {e}")
             return 1

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tolstack"
-version = "0.8.6"
+version = "0.8.7"
 description = ""
 authors = ["lemon1324 <lemon1324@gmail.com>"]
 readme = "README.md"

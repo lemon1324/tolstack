@@ -1,5 +1,5 @@
 from tolstack.StackUtils import (
-    is_variable,
+    is_variable_or_numeric,
     infix_to_rpn,
     is_numeric_string,
     is_unary_operator,
@@ -27,7 +27,7 @@ class TreeParser:
         stack = []
 
         for token in rpn_expression:
-            if is_variable(token):
+            if is_variable_or_numeric(token):
                 if token in self.value_map:  # defined constants and dimensions
                     stack.append(TreeNode(token))
                 elif token in self.expression_map:  # previously defined expressions
